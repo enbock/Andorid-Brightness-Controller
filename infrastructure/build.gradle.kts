@@ -9,6 +9,7 @@ android {
 
     defaultConfig {
         minSdk = 36
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     compileOptions {
@@ -19,4 +20,16 @@ android {
 
 kotlin {
     jvmToolchain(21)
+}
+
+dependencies {
+    api(project(":core"))
+    // StateFlow appears in the public ScreenStateClient API, so it must be exposed transitively.
+    api(libs.kotlinx.coroutines.core)
+
+    testImplementation(libs.junit)
+
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
 }
