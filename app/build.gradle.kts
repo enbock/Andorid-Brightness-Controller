@@ -37,6 +37,8 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":core"))
+
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
 
