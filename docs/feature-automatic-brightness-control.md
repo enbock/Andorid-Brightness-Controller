@@ -236,7 +236,7 @@ hardware. No Compose tests.
   `.../HysteresisGate/**`.*
   *Done: implementation commit `db5aeb2a42b0fb04ff8c667bf18f31a936c9f94f`.*
   *Verify: monotonicity property test, low-light floor (AC3.3) and breakpoint oscillation (AC3.2).*
-- [ ] **T3 — Device range resolution, scaling, clamping and dead-band**: implement
+- [x] **T3 — Device range resolution, scaling, clamping and dead-band**: implement
   `BrightnessRangeResolver` (fallback chain) and the clamp + `MinimumStepDeadBand` logic inside
   `BrightnessControllerUseCase`'s pure part.
   *Files: `:core/src/main/kotlin/com/ambientbrightness/core/BrightnessRangeResolver/**`,
@@ -316,3 +316,29 @@ that connects the F1 stream, the status surface and the composition root.
   `:core:dependencies --configuration compileClasspath --no-daemon` (no Android artifacts);
   `:core:test :infrastructure:test :app:assembleDebug --no-daemon`. No deviations; T1 interfaces
   were unchanged.
+
+### T3 — Device range resolution, scaling, clamping and dead-band
+
+*Done: implementation commit `5f5d0d1a6785e6917ce1be4d5a13dee9141b14e6`.*
+
+- Added `BrightnessRangeResolver`, which passes through a valid reported range and otherwise uses
+  the core fallback `BrightnessRange(1, 255)`; hardware discovery remains an infrastructure concern.
+- Added `BrightnessRangeScaler.scale(fraction, range)` for linear inclusive-range scaling, nearest
+  device-unit rounding, saturation/clamping, singleton ranges, and explicit rejection of NaN.
+- Added `MinimumStepDeadBand` with a default minimum step of 1 device unit. It returns the existing
+  `BrightnessWriteResult.Suppressed` status below the threshold and updates its remembered value
+  only when the caller records a successfully applied write.
+- Added 10 focused JVM tests for AC1.2 and AC2.1–2.3, covering range resolution, endpoints,
+  midpoint, saturation, singleton and NaN scaling, never-zero behavior, exact/below-threshold
+  decisions, first request, and unchanged prior value after suppression.
+- Files:
+  `core/src/main/kotlin/com/ambientbrightness/core/BrightnessRangeResolver/BrightnessRangeResolver.kt`,
+  `core/src/main/kotlin/com/ambientbrightness/core/BrightnessRangeScaler/BrightnessRangeScaler.kt`,
+  `core/src/main/kotlin/com/ambientbrightness/core/MinimumStepDeadBand/MinimumStepDeadBand.kt`,
+  `core/src/test/kotlin/com/ambientbrightness/core/BrightnessRangeResolver/BrightnessRangeResolverTest.kt`,
+  `core/src/test/kotlin/com/ambientbrightness/core/BrightnessRangeScaler/BrightnessRangeScalerTest.kt`,
+  `core/src/test/kotlin/com/ambientbrightness/core/MinimumStepDeadBand/MinimumStepDeadBandTest.kt`.
+- Verification passed: `:core:test --no-daemon` (80 tests, 0 failures); `:core:dependencies
+  --configuration compileClasspath --no-daemon` (no Android artifacts); and `:core:test
+  :infrastructure:test :app:assembleDebug --no-daemon`. No deviations; orchestration and writes
+  remain deferred to T5/T4.
