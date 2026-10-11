@@ -130,6 +130,28 @@ to change brightness, and confirmation that stopping really stops all changes.*
 | D9 | The offset and response-speed controls live on a dedicated settings screen; the dashboard shows live values and start/stop. |
 | D10 | The dashboard shows ambient light as a numeric lux value plus a qualitative description of the light level. |
 | D11 | The battery-optimization exemption is recommended but **advisory** — it never blocks starting the controller. |
+| D12 | Every completed implementation task is committed to git as its own commit (see [Development Workflow](#development-workflow)). |
+
+## Development Workflow
+
+- **One commit per completed task.** As soon as a task's stated verification passes, stage the
+  changes (`git add -A`) and commit them before starting the next task. Never batch several tasks
+  into one commit, and never commit a task whose verification has not passed.
+- **`.gitignore` must keep build output out of the repository:** `build/`, `.gradle/`,
+  `local.properties`, `.idea/`, `*.iml`. `local.properties` is machine-local (it holds `sdk.dir`)
+  and must never be committed.
+- **Commit messages follow Conventional Commits:** `<type>(<scope>): <summary>`, where `<scope>` is
+  the feature slug or module (`build`, `core`, `sensor`, `brightness`, `offset`, `tuning`,
+  `service`, `setup`, `ui`). The body lists what changed, the task ID, and the exact verification
+  command that was run. Footer:
+
+  ```
+  Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+  ```
+
+- **Task progress is recorded in the feature document**, not only in the commit: flip the task from
+  `- [ ]` to `- [x]` and append a short `*Done:` note with the commit SHA and the verification
+  result. The feature documents are the source of truth for what is complete.
 
 ## Non-Functional Requirements
 
