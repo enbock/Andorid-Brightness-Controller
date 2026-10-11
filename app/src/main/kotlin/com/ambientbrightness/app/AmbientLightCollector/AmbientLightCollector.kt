@@ -2,10 +2,12 @@ package com.ambientbrightness.app
 
 import com.ambientbrightness.core.AmbientLightService
 import com.ambientbrightness.core.LuxSample
+import com.ambientbrightness.core.ScreenStateClient
 import com.ambientbrightness.core.SensorAvailability
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
 
@@ -15,6 +17,7 @@ import kotlinx.coroutines.coroutineScope
  */
 class AmbientLightCollector(
     private val service: AmbientLightService,
+    private val screenStateClient: ScreenStateClient,
 ) {
 
     fun collect(
@@ -24,7 +27,11 @@ class AmbientLightCollector(
     ): Job = scope.launch {
         coroutineScope {
             launch { service.availability.collect(onAvailability) }
-            service.start().collect(onSample)
+            screenStateClient.isScreenOn.collectLatest { isScreenOn ->
+                if (isScreenOn) {
+                    service.start().collect(onSample)
+                }
+            }
         }
     }
 }
