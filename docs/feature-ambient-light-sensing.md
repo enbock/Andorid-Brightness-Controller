@@ -183,7 +183,7 @@ by one instrumented smoke test; no Compose tests.
 
 ### Implementation Tasks
 
-- [ ] **T0 — Gradle project skeleton**: create the three-module build with Kotlin DSL and a version
+- [x] **T0 — Gradle project skeleton**: create the three-module build with Kotlin DSL and a version
   catalog. Root files: `settings.gradle.kts` (`include(":app", ":core", ":infrastructure")`,
   `pluginManagement`/`dependencyResolutionManagement` with `google()` + `mavenCentral()`),
   `build.gradle.kts`, `gradle.properties`, `gradle/libs.versions.toml`, the Gradle wrapper
@@ -201,6 +201,16 @@ by one instrumented smoke test; no Compose tests.
   `:app/src/main/AndroidManifest.xml`, `:app/src/main/kotlin/com/ambientbrightness/app/MainActivity.kt`.*
   *Verify: `./gradlew :core:test :app:assembleDebug` succeeds; a deliberately failing `:core` test
   is reported as a failure (proves the test task actually runs).*
+  *Done: versions ported from the Google-validated `android create empty-activity` template —
+  Gradle 9.1.0 (wrapper `-bin`, sha256 pinned), AGP 9.0.1 (`com.android.application` /
+  `com.android.library`), Kotlin 2.3.20 (`org.jetbrains.kotlin.jvm` for `:core`,
+  `org.jetbrains.kotlin.plugin.compose` for `:app`; AGP 9 has built-in Kotlin support, so no
+  `kotlin.android` plugin), Compose BOM 2026.03.01, JUnit Jupiter 5.12.2.
+  Verified with `.\gradlew.bat :core:test :app:assembleDebug --no-daemon` → BUILD SUCCESSFUL;
+  `:infrastructure:assembleDebug` also BUILD SUCCESSFUL. A temporary failing
+  `SkeletonFailingTest` in `:core/src/test/kotlin` made `:core:test` FAIL as expected and was
+  removed afterwards (test task proven to execute). APK: `app\build\outputs\apk\debug\app-debug.apk`.
+  Commit: `24e583d` (`feat(build): add Gradle skeleton for :app, :core and :infrastructure`).*
 - [ ] **T1 — Domain model, boundary interface and classifier**: add `LuxSample`, `SensorProfile`,
   `SensorAvailability`, the `LightLevel` enum + `LightLevelClassifier`, the `AmbientLightSensorClient`
   and `ScreenStateClient` interfaces, and the `AmbientLightService` boundary interface in `:core`.
