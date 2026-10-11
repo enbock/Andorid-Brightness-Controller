@@ -179,15 +179,24 @@ is a short-lived optimistic state reconciled by the next F5 state (no timeout-ba
 
 ### Android Platform Specifics
 
-- **UI artifacts (current stable, all fine with `minSdk`/`compileSdk` 36):** `androidx.compose:compose-bom:2026.09.00`
-  for Compose + Material 3 (`androidx.compose.material3`), `androidx.lifecycle:lifecycle-runtime-compose:2.11.0`
-  for `collectAsStateWithLifecycle`, `androidx.activity:activity-compose:1.13.0` and
-  `androidx.core:core-ktx:1.19.1`. F3/F4 add `androidx.datastore:datastore-preferences:1.2.1`.
+- **UI artifacts — the version catalog is the single source of truth.** `gradle/libs.versions.toml`
+  (created by F1/T0) is authoritative; do not hard-code a version in a module build file and do not
+  re-derive versions from this document. T0 pinned the Google-validated set for `compileSdk = 36`:
+  AGP 9.0.1, Kotlin 2.3.20, Gradle 9.1.0, `androidx.compose:compose-bom:2026.03.01` (brings
+  `androidx.compose.material3`), `androidx.activity:activity-compose:1.13.0`,
+  `androidx.core:core-ktx:1.18.0`, `androidx.lifecycle:lifecycle-runtime-ktx:2.10.0`.
+  T5 must **add** `androidx.lifecycle:lifecycle-runtime-compose` (for `collectAsStateWithLifecycle`)
+  and `androidx.navigation:navigation-compose` to that catalog, choosing versions that are compatible
+  with the pinned AGP 9.0.1 / Kotlin 2.3.20 toolchain and with the Compose BOM already in the catalog.
+  Latest known stable are `lifecycle-runtime-compose:2.11.0` and `navigation-compose:2.10.2`, but the
+  catalog's existing Compose BOM wins if a conflict appears — the build must stay green.
+  F3/F4 add `androidx.datastore:datastore-preferences` (latest known stable 1.2.1) the same way.
   Sampling stops when backgrounded — do **not** start a second coroutine for the sensor.
-- **Navigation between screens (confirmed):** `androidx.navigation:navigation-compose:2.10.2` with
+- **Navigation between screens (confirmed):** `androidx.navigation:navigation-compose` with
   **type-safe routes** — `@Serializable` route objects passed to `NavHost(navController, startDestination = Dashboard)`
   and `composable<Dashboard> { }` instead of route strings. The type-safe API is documented as available
-  since Navigation 2.8.0 and is stable in 2.10.2; it requires the Kotlin Serialization plugin.
+  since Navigation 2.8.0 and is stable in 2.10.2; it requires the Kotlin Serialization plugin, which
+  must also be added to the catalog and to `:app`'s plugins by T5.
 - **Predictive back (confirmed, targetSdk 36):** on Android 16+ devices the predictive back system
   animations are enabled **by default**, and `onBackPressed()` is no longer called and
   `KeyEvent.KEYCODE_BACK` is no longer dispatched. F7 must use only supported back APIs — `NavHost`'s

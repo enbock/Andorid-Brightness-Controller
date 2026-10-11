@@ -174,10 +174,11 @@ by one instrumented smoke test; no Compose tests.
   `android docs …` (official documentation search). It is *not* required to build the project.
 - **`ANDROID_HOME` and `ANDROID_SDK_ROOT` are not set** — the SDK location must come from
   `local.properties` (`sdk.dir=…`), which is machine-local and must not be committed.
-- **No Gradle installation and no Gradle wrapper exist yet.** Bootstrap the wrapper with
-  `android create empty-activity` into a scratch directory, which yields a Google-validated
-  Gradle wrapper, AGP, Kotlin and Compose version set, then port those exact versions into the
-  three-module build below. Do not hand-guess AGP/Kotlin/Gradle compatibility for `compileSdk = 36`.
+- **Gradle wrapper is part of the repository** (T0): run `.\gradlew.bat …` from the project root.
+  Gradle, AGP, Kotlin and Compose versions are pinned in `gradle/libs.versions.toml`, which is the
+  single source of truth — the catalogue set came from Google's own `empty-activity` template
+  (`android create empty-activity`), so it is validated for `compileSdk = 36`. Do not hand-guess
+  AGP/Kotlin/Gradle compatibility; add new dependencies through the catalogue and keep the build green.
 - Shell note: every command runs in a **fresh process**, so tools installed during a session are not
   on `PATH` for later commands — use absolute paths.
 
