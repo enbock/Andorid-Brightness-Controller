@@ -223,7 +223,7 @@ hardware. No Compose tests.
 
 ### Implementation Tasks
 
-- [ ] **T1 — Domain model & boundary interfaces**: add `BrightnessValue`, `BrightnessRange`,
+- [x] **T1 — Domain model & boundary interfaces**: add `BrightnessValue`, `BrightnessRange`,
   `BrightnessWriteResult`, `BrightnessStatus`, `BuiltInAdaptiveBrightnessState`, `BrightnessContext`
   and `BrightnessSnapshot`, plus the `AutomaticBrightnessController`, `BrightnessMappingCurve`,
   `SystemBrightnessClient`, `DeviceBrightnessRangeClient`, `WriteSettingsPermissionChecker`,
@@ -263,3 +263,32 @@ pure and can proceed in parallel once T1 exists; T3 depends on T2's fraction out
 interface, so the clamp/dead-band work can be built against a stub curve. T4 is independent of T2/T3
 and can run alongside them (adapters only). T5 depends on all of them because it is the only place
 that connects the F1 stream, the status surface and the composition root.
+
+## Implementation Notes
+
+### T1 — Domain model & boundary interfaces
+
+*Done: implementation commit `8d137e13aab57afb3e28464d22953d81b7abe9f7`. Added these files:*
+
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessController.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessContext.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessMappingCurve.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessRange.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessSnapshot.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessStatus.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessTransform.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessValue.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessWriteResult.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/BuiltInAdaptiveBrightnessState.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/DeviceBrightnessRangeClient.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/HysteresisGate.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/SystemBrightnessClient.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/WriteSettingsPermissionChecker.kt`
+- `core/src/test/kotlin/com/ambientbrightness/core/BrightnessContractsTest.kt`
+- `core/src/test/kotlin/com/ambientbrightness/core/testdoubles/BrightnessContractFakes.kt`
+
+  `BrightnessValue` rejects values below 1; `BrightnessRange` requires a positive minimum and
+  `max >= min`. Status exposes the last applied value, last lux, write outcome and error. Range
+  discovery is a separate client; permission grant is observable as a `StateFlow`. No deviations.
+  Verification passed: `:core:test`; `:core:dependencies --configuration compileClasspath`
+  (no Android artifacts); `:core:test :infrastructure:test :app:assembleDebug`.
