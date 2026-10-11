@@ -202,7 +202,13 @@ by one instrumented smoke test; no Compose tests.
 ### Build Toolchain (verified on this machine)
 
 - **JDK 21** — Eclipse Temurin `21.0.12.101`, at `C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot`.
-  `JAVA_HOME` is set machine-wide, so new processes pick it up automatically. AGP requires JDK 17+.
+  `JAVA_HOME` is set machine-wide. AGP requires JDK 17+. Because every command runs in a fresh shell
+  whose environment block may predate that setting, set it explicitly in the same command as the Gradle
+  call, otherwise Gradle fails with *"requires JVM 17 or later… currently configured to use JVM 8"*:
+  ```powershell
+  $env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot'
+  .\gradlew.bat :core:test --no-daemon
+  ```
 - **Android SDK** — at `C:\Users\endre\AppData\Local\Android\Sdk`, containing:
   `platform-tools` 37.0.1, `platforms/android-36` (Android 16), `build-tools/36.0.0`, and an
   accepted `android-sdk-license`. Installed with the Android CLI (`android sdk install`).
@@ -218,6 +224,31 @@ by one instrumented smoke test; no Compose tests.
   AGP/Kotlin/Gradle compatibility; add new dependencies through the catalogue and keep the build green.
 - Shell note: every command runs in a **fresh process**, so tools installed during a session are not
   on `PATH` for later commands — use absolute paths.
+
+### Device & Emulator Verification (state on this machine)
+
+Instrumented tests (T2's smoke test, and later F5's foreground service and reboot behaviour) need a
+running Android 16 device. The emulator is installed but **cannot boot yet**:
+
+- `emulator` 37.2.12.0 and the system images `system-images/android-36/google_apis/x86_64` (7.0.0) plus
+  `google_apis_playstore/x86_64` are installed; the AVD `medium_phone` exists and uses the Play Store
+  image (the Android CLI downloaded it itself).
+- **Blocker: hardware acceleration is unavailable.** `VirtualizationFirmwareEnabled = False` (VT-x is
+  disabled in the firmware) and `HypervisorPresent = False`. `emulator-check.exe accel` exits with code
+  `6` (*"Android Emulator hypervisor driver is not installed"*), and starting the AVD fails with
+  `x86_64 emulation currently requires hardware acceleration!` — the `Ok: Hypervisor compatibility…`
+  line printed just before it is misleading.
+- The Android Emulator Hypervisor Driver 2.2.0 is already downloaded to
+  `…\Android\Sdk\extras\google\Android_Emulator_Hypervisor_Driver\`, but installing it needs
+  administrator rights **and** enabled VT-x, so it has not been installed.
+- **To unblock:** enable VT-x/Intel Virtualization Technology in the UEFI/BIOS, then run
+  `silent_install.bat` from that directory in an **elevated** shell. Alternative without a kernel
+  driver: enable the Windows optional feature `HypervisorPlatform` as administrator and use WHPX.
+  Verify with `emulator-check.exe accel` (code `6` must be gone) and
+  `emulator.exe -avd medium_phone -no-window -no-audio -gpu swiftshader_indirect`, then
+  `adb devices`.
+- Until then, all instrumented tests stay **compiled but not executed**, and every task verification
+  that needs a device is recorded as *pending device* in its `*Done:*` note.
 
 ### Implementation Tasks
 
@@ -319,6 +350,8 @@ by one instrumented smoke test; no Compose tests.
   :infrastructure:assembleDebugAndroidTest --no-daemon` → BUILD SUCCESSFUL (unit tests green;
   instrumented test **compiled only**, not run). `.\gradlew.bat :core:test :infrastructure:test
   :app:assembleDebug --no-daemon` → BUILD SUCCESSFUL.*
+  *Pending device: the instrumented smoke test still has to be executed once a device or emulator is
+  available — see [Device & Emulator Verification](#device--emulator-verification).*
   *Files added: `:infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/{SensorProfileFactory/SensorProfileFactory,AndroidAmbientLightSensorClient/AndroidAmbientLightSensorClient,AndroidScreenStateClient/AndroidScreenStateClient,DummyAmbientLightSensorClient/DummyAmbientLightSensorClient,DummyScreenStateClient/DummyScreenStateClient}.kt`,
   `:infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/{SensorProfileFactoryTest,DummyAmbientLightSensorClientTest,DummyScreenStateClientTest}.kt`,
   `:infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/AndroidAmbientLightSensorClientTest.kt`;
