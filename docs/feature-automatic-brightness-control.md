@@ -237,10 +237,9 @@ hardware. No Compose tests.
   *Done: implementation commit `db5aeb2a42b0fb04ff8c667bf18f31a936c9f94f`.*
   *Verify: monotonicity property test, low-light floor (AC3.3) and breakpoint oscillation (AC3.2).*
 - [x] **T3 — Device range resolution, scaling, clamping and dead-band**: implement
-  `BrightnessRangeResolver` (fallback chain) and the clamp + `MinimumStepDeadBand` logic inside
-  `BrightnessControllerUseCase`'s pure part.
-  *Files: `:core/src/main/kotlin/com/ambientbrightness/core/BrightnessRangeResolver/**`,
-  `.../BrightnessControllerUseCase/**`.*
+  `BrightnessRangeResolver`, `BrightnessRangeScaler` and `MinimumStepDeadBand` as reusable pure-core
+  helpers. The controller orchestration consumes these helpers in T5.
+  *Files: `:core/src/main/kotlin/com/ambientbrightness/core/{BrightnessRangeResolver,BrightnessRangeScaler,MinimumStepDeadBand}/**`.*
   *Verify: unit tests for AC2.2/AC2.3, never-0 (AC2.1) and suppression below min step (AC1.2).*
 - [ ] **T4 — System brightness writer, permission checker and failure handling**: implement
   `AndroidSystemBrightnessClient`, `AndroidDeviceBrightnessRangeClient`,
@@ -319,7 +318,8 @@ that connects the F1 stream, the status surface and the composition root.
 
 ### T3 — Device range resolution, scaling, clamping and dead-band
 
-*Done: implementation commit `5f5d0d1a6785e6917ce1be4d5a13dee9141b14e6`.*
+*Done: implementation commit `5f5d0d1a6785e6917ce1be4d5a13dee9141b14e6`; progress documentation
+commit `6b3e978`.*
 
 - Added `BrightnessRangeResolver`, which passes through a valid reported range and otherwise uses
   the core fallback `BrightnessRange(1, 255)`; hardware discovery remains an infrastructure concern.
