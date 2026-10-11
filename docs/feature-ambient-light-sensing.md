@@ -78,6 +78,8 @@ reading cannot cause a visible jump in screen brightness.
 Three Gradle modules (Android 16 / API 36, minSdk = targetSdk = 36, Kotlin):
 
 - `:core` — pure Kotlin, no Android APIs. Domain model, boundary interface, use-cases, classifier.
+  `:core` gains `implementation(libs.kotlinx.coroutines.core)` from the version catalog (for
+  `Flow`/`StateFlow`) and remains Android-free.
 - `:infrastructure` — Android adapters implementing the `:core` client interfaces.
 - `:app` — composition root (manual DI), lifecycle owner of the collection loop.
 
@@ -88,16 +90,48 @@ Added/changed components:
 - `AmbientLightService` (boundary, `:core`): the single public entry point for sensor
   availability and a stabilised lux stream. Everything else in the app depends on this.
 - `LuxSample` (`:core`, value object): `lux: Float`, `timestampMillis: Long`.
-- `SensorAvailability` (`:core`, sealed): `Available(SensorProfile)`, `Unavailable(reason)`.
+- `SensorAvailability` (`:core`, sealed):
+  ```kotlin
+  sealed interface SensorAvailability {
+      data class Available(val profile: SensorProfile) : SensorAvailability
+      data class Unavailable(
+          val reason: SensorUnavailableReason,
+          val userMessage: String = reason.defaultUserMessage,
+      ) : SensorAvailability
+  }
+  enum class SensorUnavailableReason(val defaultUserMessage: String) { NoSensor, NotUsable }
+  ```
+  `reason` is the machine-readable key that F7 maps to localized string resources; `userMessage` is
+  a non-technical English fallback for logs, tests and non-UI consumers.
 - `SensorProfile` (`:core`): sensor `name`, `maxRangeLux`, `minDelayMicros` for diagnostics.
-- `AmbientLightSensorClient` (`:core` interface, adapter in `:infrastructure`): raw sensor
-  registration/events, exposing availability + raw lux callbacks.
-- `ScreenStateClient` (`:core` interface, adapter in `:infrastructure`): screen on/off observable.
-- `LightLevelClassifier` (`:core`, Decision D10): maps lux to `LightLevel` enum
-  (`DARK, DIM, INDOOR, BRIGHT, FULL_SUN` and `UNKNOWN`).
+- `AmbientLightSensorClient` (`:core` interface, adapter in `:infrastructure`):
+  ```kotlin
+  interface AmbientLightSensorClient {
+      val availability: SensorAvailability
+      fun register(onLux: (Float) -> Unit)
+      fun unregister()   // idempotent; guarantees no further callbacks
+  }
+  ```
+  Adapter: raw sensor registration/events.
+- `ScreenStateClient` (`:core` interface, adapter in `:infrastructure`):
+  ```kotlin
+  interface ScreenStateClient { val isScreenOn: StateFlow<Boolean> }   // hot, conflated
+  ```
+- `LightLevelClassifier` (`:core`, Decision D10): `object LightLevelClassifier { fun classify(lux: Float): LightLevel }`
+  — stateless and total. Boundaries are lower-inclusive / upper-exclusive: `DARK [0, 10)`,
+  `DIM [10, 100)`, `INDOOR [100, 1000)`, `BRIGHT [1000, 10000)`, `FULL_SUN [10000, ∞)`. `UNKNOWN`
+  is returned for non-finite lux (NaN, ±Infinity) and for negative lux (invalid input). AC3.4 clamps
+  negatives before the classifier in the pipeline, so a real 0 lux reading is `DARK` per AC3.3.
 - `AmbientLightUseCase` (`:core`): orchestrates client events → throttle → stabilise → emit.
-- `ReadingStabiliser` (`:core` interface) + `OutlierClampingStabiliser` (`:core`): outlier
-  rejection, range clamping, 0-lux validity.
+- `ReadingStabiliser` (`:core` interface) + `OutlierClampingStabiliser` (`:core`):
+  ```kotlin
+  interface ReadingStabiliser { fun stabilise(sample: LuxSample): LuxSample? }
+  ```
+  Synchronous and non-suspending; `null` means the value is rejected/not emitted this round.
+  Implementations are stateful across calls (they retain the last accepted value for outlier
+  rejection). `OutlierClampingStabiliser` is constructed with `maxRangeLux`. This matches F4's
+  already-written `stabilise(sample): LuxSample?`; F4's "stateless" wording refers to the fixed
+  per-sample duties, not the retained state. Also does range clamping and 0-lux validity.
 - `AmbientLightCollector` (`:app`, thin): consumes the boundary interface and forwards samples;
   no business logic.
 
@@ -105,8 +139,11 @@ Added/changed components:
 
 `SensorManager` events → `AmbientLightSensorClient` (adapter) → `AmbientLightUseCase`:
 raw event is throttled to at most one processed value per sampling interval, then handed to
-`ReadingStabiliser`, which clamps to `[0, maxRangeLux]` and rejects single samples far outside
-the recent trend. A valid sample becomes `LuxSample`, is classified via `LightLevelClassifier`,
+`ReadingStabiliser.stabilise(sample: LuxSample)`: a `null` return rejects the sample (nothing is
+emitted this round); otherwise the accepted sample is clamped to `[0, maxRangeLux]` and single
+samples far outside the recent trend are rejected. Because negatives are clamped here before
+classification, `LightLevelClassifier.classify(lux)` only ever receives non-negative finite lux
+(AC3.4 → AC3.3). The accepted sample becomes `LuxSample`, is classified via `LightLevelClassifier`,
 and is emitted on `AmbientLightService.luxStream()`. `ScreenStateClient` gates emission only for
 consumers that request screen-on samples; the sensing loop itself may idle while screen-off
 (AC1.4) — no brightness action is taken in F1.
