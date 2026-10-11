@@ -401,7 +401,8 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   screen-off gate is honoured. *Files: `:app/src/main/kotlin/com/ambientbrightness/app/**`.*
   *Verify: instrumented test asserting no sensor events after `stop()` (AC1.3) and idle while
   screen off (AC1.4).*
-  *Done: implementation commit `d3ce1e7`. Added `AmbientBrightnessApplication` and the
+  *Done: implementation commit `d3ce1e7`; progress documentation commit `aada8a5`. Added
+  `AmbientBrightnessApplication` and the
   app-scoped `AmbientBrightnessComponent`, which constructs the Android sensor/screen clients,
   `AmbientLightUseCase`, range-configured `OutlierClampingStabiliser`, `DefaultAmbientLightService`
   and `AmbientLightCollector`. A missing/invalid range uses the safe positive 1,000-lux fallback.
