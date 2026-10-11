@@ -382,8 +382,7 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   to the caller (no UI). *Files: `:core/.../AmbientLightService/**`,
   `:app/src/main/kotlin/com/ambientbrightness/app/AmbientLightCollector/**`.*
   *Verify: unit tests for AC2.1–AC2.3.*
-  *Done: implementation commit `ad7f8a1`; documentation commit SHA recorded in the
-  follow-up documentation commit. Added
+  *Done: implementation commit `ad7f8a1`; documentation commit `9fdc255`. Added
   `DefaultAmbientLightService` with injectable `startupTimeoutMillis` (default 5,000 ms): it checks
   sensor availability before registration, publishes `Available(profile)` only after the first
   emitted reading, times out silent sensors as `Unavailable(NotUsable)`, and serializes cold
