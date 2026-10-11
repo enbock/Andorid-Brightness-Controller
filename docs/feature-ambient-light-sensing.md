@@ -227,28 +227,18 @@ by one instrumented smoke test; no Compose tests.
 
 ### Device & Emulator Verification (state on this machine)
 
-Instrumented tests (T2's smoke test, and later F5's foreground service and reboot behaviour) need a
-running Android 16 device. The emulator is installed but **cannot boot yet**:
+The user enabled VMX in firmware. Windows now reports the hypervisor present, and
+`emulator-check.exe accel` exits with code `0`: **WHPX is installed and usable**. The Android Emulator
+Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed while WHPX works.
 
-- `emulator` 37.2.12.0 and the system images `system-images/android-36/google_apis/x86_64` (7.0.0) plus
-  `google_apis_playstore/x86_64` are installed; the AVD `medium_phone` exists and uses the Play Store
-  image (the Android CLI downloaded it itself).
-- **Blocker: hardware acceleration is unavailable.** `VirtualizationFirmwareEnabled = False` (VT-x is
-  disabled in the firmware) and `HypervisorPresent = False`. `emulator-check.exe accel` exits with code
-  `6` (*"Android Emulator hypervisor driver is not installed"*), and starting the AVD fails with
-  `x86_64 emulation currently requires hardware acceleration!` — the `Ok: Hypervisor compatibility…`
-  line printed just before it is misleading.
-- The Android Emulator Hypervisor Driver 2.2.0 is already downloaded to
-  `…\Android\Sdk\extras\google\Android_Emulator_Hypervisor_Driver\`, but installing it needs
-  administrator rights **and** enabled VT-x, so it has not been installed.
-- **To unblock:** enable VT-x/Intel Virtualization Technology in the UEFI/BIOS, then run
-  `silent_install.bat` from that directory in an **elevated** shell. Alternative without a kernel
-  driver: enable the Windows optional feature `HypervisorPlatform` as administrator and use WHPX.
-  Verify with `emulator-check.exe accel` (code `6` must be gone) and
-  `emulator.exe -avd medium_phone -no-window -no-audio -gpu swiftshader_indirect`, then
-  `adb devices`.
-- Until then, all instrumented tests stay **compiled but not executed**, and every task verification
-  that needs a device is recorded as *pending device* in its `*Done:*` note.
+- `emulator` 37.2.12.0; AVD `medium_phone` (Play Store system image); Android 16 / API 36.
+- Verified boot with `emulator.exe -avd medium_phone -no-window -no-audio -no-snapshot -gpu
+  swiftshader_indirect`; `adb devices` reports `emulator-5554` and `sys.boot_completed=1`.
+- **T2 instrumented smoke test executed successfully:** `.\gradlew.bat
+  :infrastructure:connectedDebugAndroidTest --no-daemon --console=plain` → BUILD SUCCESSFUL;
+  `AndroidAmbientLightSensorClientTest.lightEventReachesCallback` passed (1 test, 0 failures).
+- Device-dependent tests are no longer generally blocked. Foreground-service and reboot behaviour
+  still need their own verification when those tasks are implemented.
 
 ### Implementation Tasks
 
@@ -348,18 +338,16 @@ running Android 16 device. The emulator is installed but **cannot boot yet**:
   a settable `available` flag and `emit`; `DummyScreenStateClient` with `setScreenOn`).*
   *Verify results: `.\gradlew.bat :infrastructure:test :infrastructure:assembleDebug
   :infrastructure:assembleDebugAndroidTest --no-daemon` → BUILD SUCCESSFUL (unit tests green;
-  instrumented test **compiled only**, not run). `.\gradlew.bat :core:test :infrastructure:test
-  :app:assembleDebug --no-daemon` → BUILD SUCCESSFUL.*
-  *Pending device: the instrumented smoke test still has to be executed once a device or emulator is
-  available — see [Device & Emulator Verification](#device--emulator-verification).*
+  instrumented test compiled). `.\gradlew.bat :core:test :infrastructure:test :app:assembleDebug
+  --no-daemon` → BUILD SUCCESSFUL. `.\gradlew.bat :infrastructure:connectedDebugAndroidTest
+  --no-daemon --console=plain` → BUILD SUCCESSFUL on `medium_phone` (Android 16 / API 36);
+  `AndroidAmbientLightSensorClientTest.lightEventReachesCallback` passed (1 test, 0 failures).*
   *Files added: `:infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/{SensorProfileFactory/SensorProfileFactory,AndroidAmbientLightSensorClient/AndroidAmbientLightSensorClient,AndroidScreenStateClient/AndroidScreenStateClient,DummyAmbientLightSensorClient/DummyAmbientLightSensorClient,DummyScreenStateClient/DummyScreenStateClient}.kt`,
   `:infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/{SensorProfileFactoryTest,DummyAmbientLightSensorClientTest,DummyScreenStateClientTest}.kt`,
   `:infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/AndroidAmbientLightSensorClientTest.kt`;
   changed `:infrastructure/build.gradle.kts` (catalog deps + `testInstrumentationRunner`) and
   `gradle/libs.versions.toml` (`junit:junit:4.13.2`, `androidx.test:runner:1.7.0`,
   `androidx.test.ext:junit:1.3.0`).*
-  *Pending: the device-dependent instrumented run (`AndroidAmbientLightSensorClientTest`) is
-  **pending** — no device/emulator is available; it was compiled, not executed.*
 - [x] **T3 — Stabiliser + throttled collection use-case**: implement `ReadingStabiliser`,
   `OutlierClampingStabiliser` (clamp, outlier rejection, 0-lux validity) and `AmbientLightUseCase`
   with injectable `Clock` and injected stabiliser, throttling to one value per interval.
