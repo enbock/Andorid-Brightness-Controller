@@ -376,12 +376,27 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   *Deviations: `FakeClock` exposes the mutable field as `nowMillis` plus `advanceBy`/`advanceTo`
   helpers; the throttling loop tracks the consumed reading with a version counter instead of
   storing a second field, because a local `@Volatile` variable is not allowed in Kotlin.*
-- [ ] **T4 — Availability, startup timeout and status surfacing**: resolve availability at start,
+- [x] **T4 — Availability, startup timeout and status surfacing**: resolve availability at start,
   apply the startup timeout → `Unavailable(NotUsable)`, and expose both states through
   `AmbientLightService.availability`; add the collector that carries the non-technical message
   to the caller (no UI). *Files: `:core/.../AmbientLightService/**`,
   `:app/src/main/kotlin/com/ambientbrightness/app/AmbientLightCollector/**`.*
   *Verify: unit tests for AC2.1–AC2.3.*
+  *Done: implementation commit `ad7f8a1`; documentation commit SHA recorded in the
+  follow-up documentation commit. Added
+  `DefaultAmbientLightService` with injectable `startupTimeoutMillis` (default 5,000 ms): it checks
+  sensor availability before registration, publishes `Available(profile)` only after the first
+  emitted reading, times out silent sensors as `Unavailable(NotUsable)`, and serializes cold
+  collections; `stop()` cancels the session and invokes the client's idempotent unregister.
+  Added the app `AmbientLightCollector` to forward samples and availability to caller callbacks,
+  plus the `:app` → `:core` project dependency. Files changed:
+  `core/src/main/kotlin/com/ambientbrightness/core/AmbientLightService/DefaultAmbientLightService.kt`,
+  `core/src/test/kotlin/com/ambientbrightness/core/AmbientLightService/DefaultAmbientLightServiceTest.kt`,
+  `app/src/main/kotlin/com/ambientbrightness/app/AmbientLightCollector/AmbientLightCollector.kt`,
+  `app/build.gradle.kts`. Tests: focused `:core:test` → BUILD SUCCESSFUL (54 tests, 0 failures;
+  five service tests cover missing sensor, first-reading/profile, timeout, valid zero lux and
+  cancellation/stop); `:core:test :infrastructure:test :app:assembleDebug` → BUILD SUCCESSFUL.
+  No acceptance-criteria or behavior deviations.*
 - [ ] **T5 — Composition root and lifecycle wiring**: bind clients, use-case and service in
   `:app`, wire `start()`/`stop()` so `stop()` unregisters the listener idempotently and the
   screen-off gate is honoured. *Files: `:app/src/main/kotlin/com/ambientbrightness/app/**`.*
