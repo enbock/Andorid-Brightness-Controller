@@ -303,11 +303,30 @@ by one instrumented smoke test; no Compose tests.
   boundary shapes). `.\gradlew.bat :core:dependencies --configuration compileClasspath --no-daemon`
   → only `kotlinx-coroutines-core(-jvm):1.10.2`, no `androidx`/`com.android` artifact.
   `.\gradlew.bat :core:test :app:assembleDebug --no-daemon` → BUILD SUCCESSFUL.*
-- [ ] **T2 — Infrastructure adapters (real + Dummy)**: implement `AndroidAmbientLightSensorClient`
+- [x] **T2 — Infrastructure adapters (real + Dummy)**: implement `AndroidAmbientLightSensorClient`
   (registration, events, `SensorProfile` from `getMaximumRange`/`getMinDelay`) and
   `AndroidScreenStateClient`; add `DummyAmbientLightSensorClient` for tests/development.
   *Files: `:infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/**`.*
   *Verify: instrumented smoke test that a light event is received; Dummy path runs on emulator.*
+  *Done: commit `d650dc4`. Added `SensorProfileFactory` (pure Kotlin, `null` for a non-positive
+  `maxRangeLux`, negative `minDelayMicros` clamped to `0`), `AndroidAmbientLightSensorClient`
+  (eager availability via the factory, idempotent registration with callback replacement,
+  deterministic idempotent `unregister`), `AndroidScreenStateClient` (event-driven `callbackFlow`
+  over `PowerManager.isInteractive` + `DisplayManager.DisplayListener`, unregistered in `awaitClose`,
+  `stateIn(WhileSubscribed(5_000))`) and the two Dummy clients (`DummyAmbientLightSensorClient` with
+  a settable `available` flag and `emit`; `DummyScreenStateClient` with `setScreenOn`).*
+  *Verify results: `.\gradlew.bat :infrastructure:test :infrastructure:assembleDebug
+  :infrastructure:assembleDebugAndroidTest --no-daemon` → BUILD SUCCESSFUL (unit tests green;
+  instrumented test **compiled only**, not run). `.\gradlew.bat :core:test :infrastructure:test
+  :app:assembleDebug --no-daemon` → BUILD SUCCESSFUL.*
+  *Files added: `:infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/{SensorProfileFactory/SensorProfileFactory,AndroidAmbientLightSensorClient/AndroidAmbientLightSensorClient,AndroidScreenStateClient/AndroidScreenStateClient,DummyAmbientLightSensorClient/DummyAmbientLightSensorClient,DummyScreenStateClient/DummyScreenStateClient}.kt`,
+  `:infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/{SensorProfileFactoryTest,DummyAmbientLightSensorClientTest,DummyScreenStateClientTest}.kt`,
+  `:infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/AndroidAmbientLightSensorClientTest.kt`;
+  changed `:infrastructure/build.gradle.kts` (catalog deps + `testInstrumentationRunner`) and
+  `gradle/libs.versions.toml` (`junit:junit:4.13.2`, `androidx.test:runner:1.7.0`,
+  `androidx.test.ext:junit:1.3.0`).*
+  *Pending: the device-dependent instrumented run (`AndroidAmbientLightSensorClientTest`) is
+  **pending** — no device/emulator is available; it was compiled, not executed.*
 - [ ] **T3 — Stabiliser + throttled collection use-case**: implement `ReadingStabiliser`,
   `OutlierClampingStabiliser` (clamp, outlier rejection, 0-lux validity) and `AmbientLightUseCase`
   with injectable `Clock` and injected stabiliser, throttling to one value per interval.
