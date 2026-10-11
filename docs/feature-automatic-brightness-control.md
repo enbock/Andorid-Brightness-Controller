@@ -118,7 +118,9 @@ Components to add (all `:core` unless noted):
 - `MinimumStepDeadBand` — suppresses writes when |new − applied| < min step.
 - `HysteresisGate` — directional hysteresis against curve oscillation (US3).
 - `SystemBrightnessClient` (interface) — read/write `Settings.System.SCREEN_BRIGHTNESS`.
-- `DeviceBrightnessRangeClient` (interface) — reads `SCREEN_BRIGHTNESS_MAX` / power profile.
+- `DeviceBrightnessRangeClient` (interface) — discovers the device maximum using the guarded
+  Android resource lookup described below; returns `null` only when that lookup yields no valid
+  maximum.
 - `WriteSettingsPermissionChecker` (interface) — reports `WRITE_SETTINGS` grant state as a flow.
 - `BuiltInAdaptiveBrightnessState` (value object) + `AdaptiveBrightnessConflictDetector` —
   observable conflict state for F6/F7 (D4); no UI here.
@@ -169,9 +171,18 @@ interface BrightnessTransform { fun apply(fraction: Float, context: BrightnessCo
 - **Hysteresis (US3/AC3.2):** `HysteresisGate` keeps a dead-band in lux around the current anchor;
   the value only re-maps once the sample leaves the band by a configured margin, so oscillation at a
   slope change cannot alternate the applied value.
-- **Range discovery (US2/AC2.3):** `BrightnessRangeResolver` prefers `Settings.System.SCREEN_BRIGHTNESS_MAX`,
-  falls back to `PowerManager`/power-profile brightness, and to a 255 default only if both are
-  unreadable; minimum is a configured floor (never 0).
+- **Range discovery (US2/AC2.3):** on the verified compile/target/min SDK 36 surface,
+  `Settings.System` has no `SCREEN_BRIGHTNESS_MAX` constant and `PowerManager` has no public
+  brightness-maximum API. Do not reference either API or assume a public power-profile API.
+  `AndroidDeviceBrightnessRangeClient` may make one narrowly-scoped runtime lookup for Android's
+  internal integer resource `config_screenBrightnessSettingMaximum`, using the public
+  `Resources.getIdentifier(name, "integer", "android")` and `Resources.getInteger(id)` APIs.
+  This resource is not a public SDK contract: use it only if the identifier exists, retrieval
+  succeeds, and the returned maximum is at least the configured positive minimum. Return `null`
+  otherwise. The existing core `BrightnessRangeResolver` then supplies its established
+  `BrightnessRange(1, 255)` fallback; do not invent additional Settings or PowerManager sources.
+  Validate `max >= min` before constructing a `BrightnessRange`, so a malformed resource value can
+  never violate the range invariant.
 - **Dead-band (US1/AC1.2):** `MinimumStepDeadBand` is the sole reason a computed value is not
   written; it is size-independent of F4's ramp timing.
 - **Write failures (US2/AC2.4):** `SystemBrightnessClient.write` returns `Failed` (permission
@@ -190,9 +201,23 @@ restore the pre-controller value on stop (D3); F2 exposes it and does not act on
 - Write path: `Settings.System.putInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, v)` —
   the only setting modified (AC1.4); no overlay.
 - `WRITE_SETTINGS` is a special permission: check with
-  `Settings.System.canWrite(context)`; observe changes via a lifecycle-aware reload (also after
-  returning from the system Settings screen).
-- `SCREEN_BRIGHTNESS_MAX` is API-36-available; guard with a fallback chain as above.
+  `Settings.System.canWrite(context)`. For T4, implement the checker as an app-scoped
+  `StateFlow` backed by an `AppOpsManager` `OPSTR_WRITE_SETTINGS` mode watcher. Register the
+  listener only while the flow is actively collected (for example, `callbackFlow` with
+  `awaitClose` unregistering via `stopWatchingMode`, shared with `stateIn` using
+  `SharingStarted.WhileSubscribed`); do not leave a process-lifetime listener registered. Re-read
+  `canWrite(context)` initially and on each matching callback. The controller's active collection
+  owns observation, and `AndroidSystemBrightnessClient.write` must still check the live grant and
+  handle `SecurityException` because revocation and callback delivery can race. The current
+  app-scoped `AmbientBrightnessComponent` has no T4 permission-checker lifecycle wiring; add its
+  dependency and scope when T4 is composed, and cancel/stop the collection with the controller.
+- Android SDK 36 does not expose `SCREEN_BRIGHTNESS_MAX` on `Settings.System` or a public maximum
+  brightness API on `PowerManager` (verified against the project's `android-36/android.jar`).
+  Do not add compile-time references to those nonexistent symbols. The guarded runtime resource
+  lookup above is the only device-maximum probe in this design; when absent or invalid,
+  `DeviceBrightnessRangeClient.readRange()` returns `null` and the existing core resolver uses
+  1–255. The lookup is deliberately confined to the infrastructure adapter and is not treated as
+  a stable public Android API.
 - `Settings.System.SCREEN_BRIGHTNESS_MODE` is **read only** (D4) — reading it feeds the conflict
   state, never a write.
 - Screen-off is already gated upstream in F1; F2 still ignores samples while stopped.
@@ -201,7 +226,9 @@ restore the pre-controller value on stop (D3); F2 exposes it and does not act on
 
 - Permission revoked mid-run → first failed write flips to `Failed`, writes stop, state surfaced.
 - Computed value < minimum → clamp to floor `>= 1`, never 0 (AC2.1); above max → clamp (AC2.2).
-- Device range unreadable → fallback range, logged, no crash.
+- Device range resource unavailable, unreadable, or less than the configured minimum → return no
+  reported range and use the core 1–255 fallback; log the fallback without crashing. A reported
+  range must have `max >= min`.
 - `LuxSample` invalid/unavailable → skip; do not write.
 - Rapid oscillation at a breakpoint → absorbed by `HysteresisGate` + dead-band.
 - Built-in adaptive brightness on → conflict state `Enabled`, controller still runs (AC4.2); hint
@@ -241,12 +268,27 @@ hardware. No Compose tests.
   helpers. The controller orchestration consumes these helpers in T5.
   *Files: `:core/src/main/kotlin/com/ambientbrightness/core/{BrightnessRangeResolver,BrightnessRangeScaler,MinimumStepDeadBand}/**`.*
   *Verify: unit tests for AC2.2/AC2.3, never-0 (AC2.1) and suppression below min step (AC1.2).*
-- [ ] **T4 — System brightness writer, permission checker and failure handling**: implement
+- [x] **T4 — System brightness writer, permission checker and failure handling**: implement
   `AndroidSystemBrightnessClient`, `AndroidDeviceBrightnessRangeClient`,
-  `AndroidWriteSettingsPermissionChecker` and the `Dummy*` variants in `:infrastructure`; wire the
-  `Failed`/error path so writes stop and the app does not crash.
+  `AndroidWriteSettingsPermissionChecker` and the `Dummy*` variants in `:infrastructure`; surface
+  typed `Failed` results without crashing. T5 owns consuming the failure, updating controller
+  status and ceasing subsequent writes. For range discovery, do not use
+  `Settings.System.SCREEN_BRIGHTNESS_MAX` or a `PowerManager` maximum API: neither exists on the
+  verified SDK 36 public surface. Confine a runtime lookup of Android's
+  `config_screenBrightnessSettingMaximum` integer resource to `AndroidDeviceBrightnessRangeClient`;
+  use `Resources.getIdentifier(..., "integer", "android")`, then `getInteger`, accepting only a
+  value `>= min`. Return `null` if the resource is missing, unreadable, or invalid, allowing the
+  existing core resolver's 1–255 fallback to apply. For permission observation, own the AppOps
+  watcher inside a collected flow and unregister it in `awaitClose`; ensure app composition supplies
+  the app scope, and controller stop cancels its active collection. Recheck `Settings.System.canWrite`
+  immediately before each write to close callback/revocation races. Treat `putInt == false`,
+  `SecurityException`, and `IllegalArgumentException` as `Failed`; do not catch-and-hide arbitrary
+  throwables. Do not implement controller/use-case failure-stop orchestration in T4; T5 must
+  surface the failure and cease write attempts until explicitly restarted/re-authorized.
   *Files: `:infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/**`.*
-  *Verify: instrumented write-then-read-back; unit-tested failure path (AC2.4) with a fake client.*
+  *Verify: resource lookup missing/invalid/valid cases and the `max >= min` invariant; permission
+  watcher registration/unregistration and grant refresh; instrumented write-then-read-back; and
+  unit-tested failure path (AC2.4) with a fake client.*
 - [ ] **T5 — Controller orchestration, conflict state, snapshot and composition root**: implement
   `AutomaticBrightnessController` + `BrightnessControllerUseCase` wiring the F1 stream through map →
   transform-hooks → clamp → dead-band → write, publish `status`,
@@ -342,3 +384,60 @@ commit `6b3e978`.*
   --configuration compileClasspath --no-daemon` (no Android artifacts); and `:core:test
   :infrastructure:test :app:assembleDebug --no-daemon`. No deviations; orchestration and writes
   remain deferred to T5/T4.
+
+### T4 — System brightness writer, permission checker and failure handling
+
+*Done: implementation commit `cdf7689e8f8efaa483c85fcd3297485d8987abbd`.*
+
+- Added `AndroidSystemBrightnessClient`, using the application `ContentResolver` to read only
+  `Settings.System.SCREEN_BRIGHTNESS` and write only that setting. It checks the live
+  `Settings.System.canWrite(context)` before each write and returns `Applied` only when `putInt`
+  succeeds. Permission denial, a false `putInt` result, `SecurityException`, and
+  `IllegalArgumentException` become nonempty diagnostic `Failed` results; expected read failures
+  return `null`.
+- Added `AndroidDeviceBrightnessRangeClient`, which reads the SDK-36 system integer resource
+  `config_screenBrightnessSettingMaximum` via `Resources.getIdentifier/getInteger`, maps the
+  minimum to `BrightnessValue(1)`, validates `max >= min`, and returns `null` for missing,
+  unreadable or invalid resource values. The existing core resolver then uses its `1..255`
+  fallback. The API-specific design was corrected after inspection of the actual `android-36`
+  `android.jar`: neither `Settings.System.SCREEN_BRIGHTNESS_MAX` nor a public `PowerManager`
+  maximum API exists there. The guarded system-resource lookup is intentionally the only Android
+  range probe.
+- Added `AndroidWriteSettingsPermissionChecker`, whose app-scoped flow starts with an accurate
+  `canWrite` value, watches `OPSTR_WRITE_SETTINGS` only while collected, refreshes on AppOps changes,
+  and unregisters the watcher on cancellation. Added deterministic dummy variants for the system
+  brightness, device range and permission clients. Declared `WRITE_SETTINGS` in the app manifest.
+- Files changed:
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/AndroidSystemBrightnessClient/AndroidSystemBrightnessClient.kt`,
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/AndroidDeviceBrightnessRangeClient/AndroidDeviceBrightnessRangeClient.kt`,
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/AndroidWriteSettingsPermissionChecker/AndroidWriteSettingsPermissionChecker.kt`,
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/DummySystemBrightnessClient/DummySystemBrightnessClient.kt`,
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/DummyDeviceBrightnessRangeClient/DummyDeviceBrightnessRangeClient.kt`,
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/DummyWriteSettingsPermissionChecker/DummyWriteSettingsPermissionChecker.kt`,
+  `infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/AndroidSystemBrightnessClientTest.kt`,
+  `infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/AndroidDeviceBrightnessRangeClientTest.kt`,
+  `infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/DummyBrightnessAdaptersTest.kt`,
+  `app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt`,
+  and `app/src/main/AndroidManifest.xml`.
+- Focused tests: infra JVM 26/26 passed (including dummy behavior, typed writer failure conversion,
+  and range validity); core JVM 80/80 passed. Required builds passed:
+  `:infrastructure:test :infrastructure:assembleDebug :infrastructure:assembleDebugAndroidTest`
+  and `:core:test :infrastructure:test :app:assembleDebug` (all with `--no-daemon`).
+- Emulator: API 36 `medium_phone` (`emulator-5554`). `:infrastructure:connectedDebugAndroidTest`
+  passed 1/1 (`AndroidAmbientLightSensorClientTest.lightEventReachesCallback`).
+  The actual brightness tests are in `app/src/androidTest/.../AndroidBrightnessAdaptersTest.kt`
+  because the infrastructure library instrumentation target is
+  `com.ambientbrightness.infrastructure.test`, not the required app package. After
+  `adb shell appops set com.ambientbrightness.app WRITE_SETTINGS allow`,
+  `:app:connectedDebugAndroidTest` passed 5/5: the existing two component tests plus
+  `deviceRangeIsValidWhenTheSystemResourceIsAvailable`,
+  `systemWriteReadsBackAndRestoresBrightness`, and
+  `permissionStateStartsWithTheLiveGrantAndObservationCanStop` (the latter toggled AppOps
+  `ignore`/`allow` and observed both flow updates). The discovered maximum was 255.
+- The write/read-back test saved brightness `102`, wrote a nearby distinct value, read it back and
+  restored `102` in `finally`; the outer adb cleanup also restored system brightness to `102`,
+  reset `WRITE_SETTINGS` to `default` while the app was installed, verified that state, and removed
+  the app package to restore its initially absent installation state.
+- **Failure boundary:** T4 adapters return `Failed`; they do not orchestrate controller status or
+  stop subsequent writes. T5 must consume `Failed`, set `BrightnessStatus.writeState/writeError`,
+  and cease future writes. No retry-stop behavior is claimed before T5.
