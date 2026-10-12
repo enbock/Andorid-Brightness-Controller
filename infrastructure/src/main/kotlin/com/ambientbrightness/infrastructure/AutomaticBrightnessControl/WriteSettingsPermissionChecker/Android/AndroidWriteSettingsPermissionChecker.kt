@@ -1,4 +1,4 @@
-package com.ambientbrightness.infrastructure
+package com.ambientbrightness.infrastructure.AutomaticBrightnessControl.WriteSettingsPermissionChecker.Android
 
 import android.app.AppOpsManager
 import android.content.Context

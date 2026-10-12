@@ -1,4 +1,4 @@
-package com.ambientbrightness.infrastructure
+package com.ambientbrightness.infrastructure.AutomaticBrightnessControl.SystemBrightnessClient.Dummy
 
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessWriteResult

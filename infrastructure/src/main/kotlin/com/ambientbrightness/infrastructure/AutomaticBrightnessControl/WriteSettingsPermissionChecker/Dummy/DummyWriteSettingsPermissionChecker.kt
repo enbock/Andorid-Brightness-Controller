@@ -1,4 +1,4 @@
-package com.ambientbrightness.infrastructure
+package com.ambientbrightness.infrastructure.AutomaticBrightnessControl.WriteSettingsPermissionChecker.Dummy
 
 import com.ambientbrightness.core.AutomaticBrightnessControl.WriteSettingsPermissionChecker
 import kotlinx.coroutines.flow.MutableStateFlow

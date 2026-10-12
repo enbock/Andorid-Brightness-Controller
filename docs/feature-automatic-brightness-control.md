@@ -408,12 +408,13 @@ commit `6b3e978`.*
   and unregisters the watcher on cancellation. Added deterministic dummy variants for the system
   brightness, device range and permission clients. Declared `WRITE_SETTINGS` in the app manifest.
 - Files changed:
-  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/AndroidSystemBrightnessClient/AndroidSystemBrightnessClient.kt`,
-  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/AndroidDeviceBrightnessRangeClient/AndroidDeviceBrightnessRangeClient.kt`,
-  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/AndroidWriteSettingsPermissionChecker/AndroidWriteSettingsPermissionChecker.kt`,
-  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/DummySystemBrightnessClient/DummySystemBrightnessClient.kt`,
-  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/DummyDeviceBrightnessRangeClient/DummyDeviceBrightnessRangeClient.kt`,
-  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/DummyWriteSettingsPermissionChecker/DummyWriteSettingsPermissionChecker.kt`,
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/AutomaticBrightnessControl/SystemBrightnessClient/Android/AndroidSystemBrightnessClient.kt`,
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/AutomaticBrightnessControl/DeviceBrightnessRangeClient/Android/AndroidDeviceBrightnessRangeClient.kt`,
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/AutomaticBrightnessControl/WriteSettingsPermissionChecker/Android/AndroidWriteSettingsPermissionChecker.kt`,
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/AutomaticBrightnessControl/SystemBrightnessClient/Dummy/DummySystemBrightnessClient.kt`,
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/AutomaticBrightnessControl/DeviceBrightnessRangeClient/Dummy/DummyDeviceBrightnessRangeClient.kt`,
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/AutomaticBrightnessControl/WriteSettingsPermissionChecker/Dummy/DummyWriteSettingsPermissionChecker.kt`
+  (regrouped by T8),
   `infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/AndroidSystemBrightnessClientTest.kt`,
   `infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/AndroidDeviceBrightnessRangeClientTest.kt`,
   `infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/DummyBrightnessAdaptersTest.kt`,

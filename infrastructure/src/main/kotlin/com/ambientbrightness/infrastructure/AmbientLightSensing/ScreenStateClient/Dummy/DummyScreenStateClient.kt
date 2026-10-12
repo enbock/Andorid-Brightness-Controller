@@ -1,4 +1,4 @@
-package com.ambientbrightness.infrastructure
+package com.ambientbrightness.infrastructure.AmbientLightSensing.ScreenStateClient.Dummy
 
 import com.ambientbrightness.core.AmbientLightSensing.ScreenStateClient
 import kotlinx.coroutines.flow.MutableStateFlow

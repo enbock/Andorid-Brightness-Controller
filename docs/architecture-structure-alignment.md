@@ -238,7 +238,7 @@ Every task below is therefore fully specified: do not re-open these decisions.
       - Verify: `DefaultAmbientLightServiceTest` and `AmbientLightServiceContractTest` green without
         modification.
 
-- [ ] **T8 — Regroup `:infrastructure` by responsibility → client → variant (M)** — depends on: T3, T4
+- [x] **T8 — Regroup `:infrastructure` by responsibility → client → variant (M)** — depends on: T3, T4
       - `infrastructure/.../infrastructure/AmbientLightSensing/AmbientLightSensorClient/Android/AndroidAmbientLightSensorClient.kt`
         and `.../AmbientLightSensorClient/Dummy/DummyAmbientLightSensorClient.kt`;
         `.../AmbientLightSensing/ScreenStateClient/{Android,Dummy}/…`;
@@ -609,4 +609,106 @@ partially finished run never leaves the docs describing a stale layout.
   no incremental state hides a folder/package mismatch. `git status --short` lists only the modified
   service plus the new `Task/` directory and the two docs — no path under `core/src/test/**`, so both
   service tests are green unmodified.
+
+### T8 — Regroup `:infrastructure` by responsibility → client → variant
+
+- Done in one commit, `refactor(infrastructure): regroup adapters by responsibility, client and variant`
+  (the SHA cannot appear in its own commit; the T10 sweep records it).
+- Eleven main files moved with `git mv` inside a fresh responsibility → client → variant tree; the
+  emptied flat `Android*/`/`Dummy*/` directories were deleted, so
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/` now contains only
+  `AmbientLightSensing/` and `AutomaticBrightnessControl/`. Old → new mapping (path **and** package):
+
+| Old path (package `com.ambientbrightness.infrastructure`) | New path | New package suffix |
+| --- | --- | --- |
+| `AndroidAmbientLightSensorClient/AndroidAmbientLightSensorClient.kt` | `AmbientLightSensing/AmbientLightSensorClient/Android/AndroidAmbientLightSensorClient.kt` | `.AmbientLightSensing.AmbientLightSensorClient.Android` |
+| `DummyAmbientLightSensorClient/DummyAmbientLightSensorClient.kt` | `AmbientLightSensing/AmbientLightSensorClient/Dummy/DummyAmbientLightSensorClient.kt` | `.AmbientLightSensing.AmbientLightSensorClient.Dummy` |
+| `AndroidScreenStateClient/AndroidScreenStateClient.kt` | `AmbientLightSensing/ScreenStateClient/Android/AndroidScreenStateClient.kt` | `.AmbientLightSensing.ScreenStateClient.Android` |
+| `DummyScreenStateClient/DummyScreenStateClient.kt` | `AmbientLightSensing/ScreenStateClient/Dummy/DummyScreenStateClient.kt` | `.AmbientLightSensing.ScreenStateClient.Dummy` |
+| `SensorProfileFactory/SensorProfileFactory.kt` | `AmbientLightSensing/SensorProfileFactory/SensorProfileFactory.kt` | `.AmbientLightSensing.SensorProfileFactory` |
+| `AndroidSystemBrightnessClient/AndroidSystemBrightnessClient.kt` | `AutomaticBrightnessControl/SystemBrightnessClient/Android/AndroidSystemBrightnessClient.kt` | `.AutomaticBrightnessControl.SystemBrightnessClient.Android` |
+| `DummySystemBrightnessClient/DummySystemBrightnessClient.kt` | `AutomaticBrightnessControl/SystemBrightnessClient/Dummy/DummySystemBrightnessClient.kt` | `.AutomaticBrightnessControl.SystemBrightnessClient.Dummy` |
+| `AndroidDeviceBrightnessRangeClient/AndroidDeviceBrightnessRangeClient.kt` | `AutomaticBrightnessControl/DeviceBrightnessRangeClient/Android/AndroidDeviceBrightnessRangeClient.kt` | `.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Android` |
+| `DummyDeviceBrightnessRangeClient/DummyDeviceBrightnessRangeClient.kt` | `AutomaticBrightnessControl/DeviceBrightnessRangeClient/Dummy/DummyDeviceBrightnessRangeClient.kt` | `.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Dummy` |
+| `AndroidWriteSettingsPermissionChecker/AndroidWriteSettingsPermissionChecker.kt` | `AutomaticBrightnessControl/WriteSettingsPermissionChecker/Android/AndroidWriteSettingsPermissionChecker.kt` | `.AutomaticBrightnessControl.WriteSettingsPermissionChecker.Android` |
+| `DummyWriteSettingsPermissionChecker/DummyWriteSettingsPermissionChecker.kt` | `AutomaticBrightnessControl/WriteSettingsPermissionChecker/Dummy/DummyWriteSettingsPermissionChecker.kt` | `.AutomaticBrightnessControl.WriteSettingsPermissionChecker.Dummy` |
+
+- Ten of the eleven files changed only their `package` line. `AndroidAmbientLightSensorClient.kt` gained
+  one import (`...AmbientLightSensing.SensorProfileFactory.SensorProfileFactory`) because it called the
+  factory unqualified from the former shared package. No class, function or file was renamed, no
+  visibility changed — `brightnessRangeFromMaximum`, `readBrightnessSetting` and `writeBrightnessSetting`
+  stay `internal` top-level functions in their new `.../Android/` packages — and no logic, KDoc or
+  formatting was touched.
+- Package/classifier trap avoided as designed: every adapter sits in `Android/` or `Dummy/` under its
+  `<Client>/` folder, and only `SensorProfileFactory.kt` sits one level below `AmbientLightSensing/`
+  without a variant level — the same shape T3/T4 used for the `:core` port folders. No package's FQ name
+  equals the FQ name of a classifier declared in its parent package.
+- Import consequences (imports only, no test regroup, no assertion touched):
+  - `app/src/main/kotlin/com/ambientbrightness/app/AmbientBrightnessApplication.kt` (2 imports) and
+    `app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt` (3 imports);
+    that instrumented test stays in `:app` because T9 relocates it.
+  - The six test files keep their folder and package `com.ambientbrightness.infrastructure` at the
+    module root, so they lost the same-package visibility of both the adapters and the `internal`
+    helpers and gained explicit imports: `AndroidDeviceBrightnessRangeClientTest`
+    (`brightnessRangeFromMaximum`), `AndroidSystemBrightnessClientTest` (`readBrightnessSetting`,
+    `writeBrightnessSetting`), `DummyAmbientLightSensorClientTest`, `DummyScreenStateClientTest`,
+    `SensorProfileFactoryTest` and `DummyBrightnessAdaptersTest` (three dummy adapters).
+    `infrastructure/src/androidTest/.../AndroidAmbientLightSensorClientTest.kt` imports
+    `AndroidAmbientLightSensorClient` for the same reason.
+- Guard added: `infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/ArchitectureStructureTest.kt`,
+  package `com.ambientbrightness.infrastructure`, so its own folder/package pair satisfies the rule it
+  checks. It mirrors the T2 `:core` guard's folder↔package logic exactly — `File("src/main/kotlin")`
+  walk, base directory `src/main/kotlin/com/ambientbrightness`, expected package = `com.ambientbrightness`
+  + folder segments, comment-aware `package` parsing, a file outside the base tree or without a
+  `package` line counted as a violation, all violations collected and asserted once, and the non-vacuous
+  `sourceRoot.isDirectory` assertion whose message names the working directory. Two deliberate
+  differences: the `import android.` purity check is **omitted** (`:infrastructure` *is* the Android
+  adapter layer), and the JUnit 4 flavour (`org.junit.Test` / `org.junit.Assert.assertTrue`, message
+  first) is used because `:infrastructure` depends on `libs.junit` only — the `:core` guard's
+  `org.junit.jupiter.api` API does not exist in this module. No other assertion was added.
+- Negative proof (the guard cannot pass vacuously): a temporary
+  `infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/GuardScratch.kt` declaring
+  `package com.ambientbrightness.infrastructure.wrong` plus a `GuardScratchNoPackage.kt` without any
+  `package` line made the guard fail — `1 test completed, 1 failed` — with both offenders in the
+  **same** assertion:
+  `src/main/kotlin/com/ambientbrightness/infrastructure/GuardScratch.kt declares package 'com.ambientbrightness.infrastructure.wrong' but its folder requires 'com.ambientbrightness.infrastructure'`
+  and `src/main/kotlin/com/ambientbrightness/infrastructure/GuardScratchNoPackage.kt has no package
+  declaration; its folder requires 'com.ambientbrightness.infrastructure'`. A third scratch file whose
+  comments and KDoc carried a wrong `package` line and an `import android.os.Bundle` line stayed green,
+  proving the comment-aware scan does not false-positive on prose. All three scratch files were deleted
+  and the guard is green again. The guard is non-vacuous positively as well: it reports **no violation**
+  on the T8 layout, so nothing had to be excluded or weakened.
+  Focused run `.\gradlew.bat --console=plain :infrastructure:testDebugUnitTest --tests
+  "com.ambientbrightness.infrastructure.ArchitectureStructureTest" --rerun-tasks` → 1 test / 0 failures
+  (`:infrastructure:test` is a lifecycle task that rejects `--tests`, hence the variant-level task).
+- Docs corrected in the same commit (paths fixed in place, marker appended, narrative untouched):
+  `docs/feature-ambient-light-sensing.md` (the T2 `Files added:` list around the `commit d650dc4` block:
+  the five main paths now point into `AmbientLightSensing/.../{Android,Dummy}/` + `(regrouped by T8)`; the
+  `:infrastructure/src/test/**` and `:infrastructure/src/androidTest/**` entries stayed valid because the
+  tests do not move) and `docs/feature-automatic-brightness-control.md` (the six `infrastructure/src/main/**`
+  entries of the T2 `Files changed:` list now point into `AutomaticBrightnessControl/.../{Android,Dummy}/`
+  + `(regrouped by T8)`; the three `infrastructure/src/test/**` entries and the `app/src/androidTest/**`
+  / `app/src/main/AndroidManifest.xml` entries are unchanged and still valid). Wildcard paths such as
+  `:infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/**` in
+  `docs/feature-background-service.md`, `docs/feature-response-tuning.md` and
+  `docs/feature-permissions-setup-flow.md` remain valid and were deliberately left untouched. A grep for
+  the old flat usage (`git grep -n -E "com\.ambientbrightness\.infrastructure\.[A-Z]" -- app/src
+  infrastructure/src core/src`) returns only new-style package/import lines — no stale
+  `com.ambientbrightness.infrastructure.<Adapter>` reference remains.
+- Verification (all green): `.\gradlew.bat --console=plain :core:test :infrastructure:test
+  :app:assembleDebug :infrastructure:compileDebugAndroidTestKotlin` → `BUILD SUCCESSFUL in 3s`;
+  `:core:test` **81 tests / 0 failures / 0 skipped** (16 classes, unchanged), `:infrastructure:test`
+  **27 tests / 0 failures / 0 skipped** (7 classes = 6 baseline + the guard), `app-debug.apk` produced,
+  `:infrastructure:compileDebugAndroidTestKotlin` green (instrumented tests compiled only, no emulator
+  and no `connectedAndroidTest`). Cache-busting runs:
+  `.\gradlew.bat --console=plain --no-build-cache :infrastructure:clean :infrastructure:test` →
+  `BUILD SUCCESSFUL in 3s` with `:infrastructure:compileDebugKotlin`,
+  `:infrastructure:compileDebugUnitTestKotlin` and `:infrastructure:testDebugUnitTest` all executed
+  (27 / 0 / 0), and `.\gradlew.bat --console=plain --no-build-cache :core:clean :core:test` →
+  `BUILD SUCCESSFUL in 3s` (81 / 0 / 0), so no incremental state hides a folder/package mismatch.
+  A combined `--no-build-cache` invocation of all four configuration-cache tasks failed with
+  *"Unable to make progress running work"* (a `clean` task racing its own consumer in one task graph), so
+  the two clean/test pairs were run as separate commands as the checklist phrases them.
+- No deviation from the T8 design; the refactor is move/package/import only, the only test edits are
+  added imports plus the new guard, and every existing test count is unchanged.
 

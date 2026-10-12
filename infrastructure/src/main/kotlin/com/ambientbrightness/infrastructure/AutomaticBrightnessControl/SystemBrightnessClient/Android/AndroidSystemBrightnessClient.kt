@@ -1,4 +1,4 @@
-package com.ambientbrightness.infrastructure
+package com.ambientbrightness.infrastructure.AutomaticBrightnessControl.SystemBrightnessClient.Android
 
 import android.content.Context
 import android.provider.Settings

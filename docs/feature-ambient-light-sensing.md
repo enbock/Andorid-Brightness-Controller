@@ -349,7 +349,7 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   --no-daemon` → BUILD SUCCESSFUL. `.\gradlew.bat :infrastructure:connectedDebugAndroidTest
   --no-daemon --console=plain` → BUILD SUCCESSFUL on `medium_phone` (Android 16 / API 36);
   `AndroidAmbientLightSensorClientTest.lightEventReachesCallback` passed (1 test, 0 failures).*
-  *Files added: `:infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/{SensorProfileFactory/SensorProfileFactory,AndroidAmbientLightSensorClient/AndroidAmbientLightSensorClient,AndroidScreenStateClient/AndroidScreenStateClient,DummyAmbientLightSensorClient/DummyAmbientLightSensorClient,DummyScreenStateClient/DummyScreenStateClient}.kt`,
+  *Files added: `:infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/{AmbientLightSensing/AmbientLightSensorClient/Android/AndroidAmbientLightSensorClient,AmbientLightSensing/AmbientLightSensorClient/Dummy/DummyAmbientLightSensorClient,AmbientLightSensing/ScreenStateClient/Android/AndroidScreenStateClient,AmbientLightSensing/ScreenStateClient/Dummy/DummyScreenStateClient,AmbientLightSensing/SensorProfileFactory/SensorProfileFactory}.kt` (regrouped by T8),
   `:infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/{SensorProfileFactoryTest,DummyAmbientLightSensorClientTest,DummyScreenStateClientTest}.kt`,
   `:infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/AndroidAmbientLightSensorClientTest.kt`;
   changed `:infrastructure/build.gradle.kts` (catalog deps + `testInstrumentationRunner`) and

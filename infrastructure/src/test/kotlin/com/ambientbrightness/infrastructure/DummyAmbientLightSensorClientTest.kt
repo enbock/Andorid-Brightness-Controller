@@ -2,6 +2,7 @@ package com.ambientbrightness.infrastructure
 
 import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
 import com.ambientbrightness.core.AmbientLightSensing.SensorUnavailableReason
+import com.ambientbrightness.infrastructure.AmbientLightSensing.AmbientLightSensorClient.Dummy.DummyAmbientLightSensorClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

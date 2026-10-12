@@ -1,4 +1,4 @@
-package com.ambientbrightness.infrastructure
+package com.ambientbrightness.infrastructure.AmbientLightSensing.SensorProfileFactory
 
 import com.ambientbrightness.core.AmbientLightSensing.SensorProfile
 

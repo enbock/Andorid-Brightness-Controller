@@ -1,4 +1,4 @@
-package com.ambientbrightness.infrastructure
+package com.ambientbrightness.infrastructure.AmbientLightSensing.ScreenStateClient.Android
 
 import android.hardware.display.DisplayManager
 import android.os.Handler

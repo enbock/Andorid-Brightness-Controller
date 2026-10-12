@@ -4,8 +4,8 @@ import android.app.Application
 import android.hardware.SensorManager
 import android.hardware.display.DisplayManager
 import android.os.PowerManager
-import com.ambientbrightness.infrastructure.AndroidAmbientLightSensorClient
-import com.ambientbrightness.infrastructure.AndroidScreenStateClient
+import com.ambientbrightness.infrastructure.AmbientLightSensing.AmbientLightSensorClient.Android.AndroidAmbientLightSensorClient
+import com.ambientbrightness.infrastructure.AmbientLightSensing.ScreenStateClient.Android.AndroidScreenStateClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

@@ -1,4 +1,4 @@
-package com.ambientbrightness.infrastructure
+package com.ambientbrightness.infrastructure.AmbientLightSensing.AmbientLightSensorClient.Android
 
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -7,6 +7,7 @@ import android.hardware.SensorManager
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
 import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
 import com.ambientbrightness.core.AmbientLightSensing.SensorUnavailableReason
+import com.ambientbrightness.infrastructure.AmbientLightSensing.SensorProfileFactory.SensorProfileFactory
 
 /**
  * [AmbientLightSensorClient] backed by the Android [SensorManager].

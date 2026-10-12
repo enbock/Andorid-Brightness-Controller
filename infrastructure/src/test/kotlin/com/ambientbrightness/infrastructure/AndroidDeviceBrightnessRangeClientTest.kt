@@ -2,6 +2,7 @@ package com.ambientbrightness.infrastructure
 
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRange
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
+import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Android.brightnessRangeFromMaximum
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

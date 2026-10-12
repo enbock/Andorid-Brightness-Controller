@@ -1,4 +1,4 @@
-package com.ambientbrightness.infrastructure
+package com.ambientbrightness.infrastructure.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Dummy
 
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRange
 import com.ambientbrightness.core.AutomaticBrightnessControl.DeviceBrightnessRangeClient

@@ -2,6 +2,8 @@ package com.ambientbrightness.infrastructure
 
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessWriteResult
+import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.SystemBrightnessClient.Android.readBrightnessSetting
+import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.SystemBrightnessClient.Android.writeBrightnessSetting
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

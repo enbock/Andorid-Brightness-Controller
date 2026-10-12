@@ -1,5 +1,6 @@
 package com.ambientbrightness.infrastructure
 
+import com.ambientbrightness.infrastructure.AmbientLightSensing.SensorProfileFactory.SensorProfileFactory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
