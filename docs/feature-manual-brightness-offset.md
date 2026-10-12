@@ -112,9 +112,9 @@ Components to add (all `:core` unless noted):
 
 Persistence reuses F4's **shared `SettingsStore`** (no bespoke port): F3 registers its
 `SettingsKey<Int>` (`brightness_offset_percent`) in F4's `SettingsKeys` and persists through
-`InMemorySettingsStore` (tests/Dummy) and `AndroidDataStoreSettingsStore` (`:infrastructure`), both
-already provided by F4. `:app`: register the transform with F2's controller and expose the service;
-no logic.
+`InMemorySettingsStore` (Dummy) and `AndroidDataStoreSettingsStore` (persistent) — both
+`:infrastructure` implementations already provided by F4; `:core` holds only the contract. `:app`:
+register the transform with F2's controller and expose the service; no logic.
 
 ### Data Flow
 
@@ -212,8 +212,9 @@ Verdict: **feasible with caveats** (see the `BrightnessContext` coordination not
 ### Test Strategy
 
 `:core` is pure Kotlin. `BrightnessOffset` gets boundary tests (`-50/+50` valid; `-51/+51` and
-non-step rejected; `0` identity). `BrightnessOffsetStateHolder` is unit-tested with F4's
-`InMemorySettingsStore` for default-on-absent (AC4.3), set/adjust/reset (AC3.3), restore after a
+non-step rejected; `0` identity). `BrightnessOffsetStateHolder` is unit-tested with a `:core`
+test-double settings store — F4's `InMemorySettingsStore` is an `:infrastructure` implementation, out
+of `:core`'s reach — for default-on-absent (AC4.3), set/adjust/reset (AC3.3), restore after a
 simulated restart (AC4.1/4.2) and no-reading change (AC1.2); an out-of-range seeded `Int` clamps to
 the `BrightnessOffsetRange` bounds. `BrightnessOffsetTransform` is tested with a fixed
 `BrightnessContext`/`BrightnessRange` for identity at `0` (AC2.4), the `±50 %`-of-span arithmetic
@@ -252,7 +253,7 @@ Compose tests.
   change), `setOffset`/`adjustBy`/`reset`, default `0`, out-of-range stored `Int` clamped via
   `BrightnessOffsetRange`.
   *Files: `:core/.../BrightnessOffsetStateHolder/**`.*
-  *Verify: with `InMemorySettingsStore` — restore-after-restart (AC4.1/4.2), default (AC4.3), reset
+  *Verify: with the `:core` test-double settings store — restore-after-restart (AC4.1/4.2), default (AC4.3), reset
   (AC3.3), no-reading change (AC1.2), out-of-range seed clamps.*
 - [ ] **T5 — Pipeline integration & composition root**: register `BrightnessOffsetTransform` as F2's
   `BrightnessTransform`, make `BrightnessControllerUseCase` re-apply on
