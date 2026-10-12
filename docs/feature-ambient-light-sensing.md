@@ -123,6 +123,12 @@ Added/changed components:
   is returned for non-finite lux (NaN, ±Infinity) and for negative lux (invalid input). AC3.4 clamps
   negatives before the classifier in the pipeline, so a real 0 lux reading is `DARK` per AC3.3.
 - `AmbientLightUseCase` (`:core`): orchestrates client events → throttle → stabilise → emit.
+  **Streaming exception to the Request/Response rule:** `AmbientLightUseCase.samples()` — and the
+  pinned boundary `AmbientLightService.start(): Flow<LuxSample>` — intentionally omit the
+  `Request`/`Response` pair the architecture rules mandate for use-case methods. The outcome of this
+  use case is a stream, not a value object: the `Flow` *is* the return channel, and `start()` is a
+  fixed contract that features F2–F7 build on. The deviation is deliberate and recorded here rather
+  than silently ignored.
 - `ReadingStabiliser` (`:core` interface) + `OutlierClampingStabiliser` (`:core`):
   ```kotlin
   interface ReadingStabiliser { fun stabilise(sample: LuxSample): LuxSample? }
@@ -378,6 +384,11 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   *Deviations: `FakeClock` exposes the mutable field as `nowMillis` plus `advanceBy`/`advanceTo`
   helpers; the throttling loop tracks the consumed reading with a version counter instead of
   storing a second field, because a local `@Volatile` variable is not allowed in Kotlin.*
+  *Appended note (architecture task T6): the raw-reading holder was extracted from
+  `AmbientLightUseCase.kt` into
+  `:core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/AmbientLightUseCase/Task/LatestReading.kt`
+  (`internal`, package `...AmbientLightUseCase.Task`); the `AmbientLightUseCase/**` entry above still
+  covers the file, and `AmbientLightUseCaseTest` stayed unmodified.*
 - [x] **T4 — Availability, startup timeout and status surfacing**: resolve availability at start,
   apply the startup timeout → `Unavailable(NotUsable)`, and expose both states through
   `AmbientLightService.availability`; add the collector that carries the non-technical message

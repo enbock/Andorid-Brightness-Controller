@@ -219,7 +219,7 @@ Every task below is therefore fully specified: do not re-open these decisions.
       - Verify: no file remains in a folder whose name differs from the type it defines; `:core:test`
         green; no package name in `:core` equals the fully-qualified name of a classifier.
 
-- [ ] **T6 — Give the use case its folder-local collaborators (S)** — depends on: T3
+- [x] **T6 — Give the use case its folder-local collaborators (S)** — depends on: T3
       - Extract the private `LatestReading` class out of `AmbientLightUseCase.kt` into
         `AmbientLightUseCase/Task/LatestReading.kt` (`internal`, behaviour identical).
       - Record the streaming exception (decision 3 in *Open questions*) in
@@ -516,4 +516,44 @@ partially finished run never leaves the docs describing a stale layout.
   `ReadingStabiliser` exists in `com.ambientbrightness.core.AmbientLightSensing`.
 - No signature, visibility, KDoc, behaviour or formatting change; one commit for the move, the two
   import fixes and the doc path. Working tree clean afterwards.
+
+### T6 — Give the use case its folder-local collaborators
+
+- Done in one commit, `refactor(core): extract LatestReading into the use case Task folder` (the SHA
+  cannot appear in its own commit; the T10 sweep records it).
+- Extracted type: `LatestReading`, the `private class` that sat at the bottom of
+  `core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/AmbientLightUseCase/AmbientLightUseCase.kt`,
+  now in `core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/AmbientLightUseCase/Task/LatestReading.kt`
+  with package `com.ambientbrightness.core.AmbientLightSensing.AmbientLightUseCase.Task` (folder and
+  package agree, so the T2 `ArchitectureStructureTest` stays green) and visibility `internal` —
+  `...AmbientLightSensing.AmbientLightUseCase` and `...AmbientLightUseCase.Task` are sibling packages
+  inside the same `:core` module, and the holder must not leak to `:app`/`:infrastructure`. The body
+  is identical (both `@Volatile` fields, `consumedVersion`, `record`, `takeIfNew`) and its KDoc moved
+  with the class; the only addition is the `...AmbientLightSensing.LuxSample` import.
+- `AmbientLightUseCase.kt` no longer declares the class and gained
+  `import com.ambientbrightness.core.AmbientLightSensing.AmbientLightUseCase.Task.LatestReading`.
+  `samples()` still calls `LatestReading()` / `record` / `takeIfNew` unchanged. The `LuxSample`
+  import stayed: the checklist phrased it as "its now-unused import", but the signature
+  `samples(): Flow<LuxSample>` still needs it, so removing it would not compile.
+  `DEFAULT_SAMPLING_INTERVAL_MILLIS` stayed in place (public API used by `:app` and the tests) and
+  `AmbientLightService` was untouched — T7 owns the remainder.
+- No `Request`/`Response` types, no signature or behaviour change, and `AmbientLightUseCaseTest` is
+  unmodified (confirmed with `git status --short`: no `:core/src/test/**` path is listed).
+- Streaming exception (decision 3) recorded once, in the architecture prose of
+  `docs/feature-ambient-light-sensing.md`, as a continuation of the `AmbientLightUseCase` bullet in
+  `### Architecture & Components`: `AmbientLightUseCase.samples()` and the pinned
+  `AmbientLightService.start(): Flow<LuxSample>` intentionally omit the `Request`/`Response` pair,
+  because the outcome is a stream, not a value object — the `Flow` *is* the return channel and
+  `start()` is the fixed contract F2–F7 build on. In the same file the explicit T3 `Files added:`
+  list got an appended note naming the new `AmbientLightUseCase/Task/LatestReading.kt` path (history
+  kept, nothing rewritten); the wildcard `*Files: .../AmbientLightUseCase/**.*` entry of that task
+  already covers the new file, so it needed no edit.
+- Verification (all green): `.\gradlew.bat --console=plain :core:test :infrastructure:test
+  :app:assembleDebug :infrastructure:compileDebugAndroidTestKotlin` → `BUILD SUCCESSFUL in 2s`;
+  `:core:test` **81 tests / 0 failures / 0 skipped** (16 classes, including the T2 guard),
+  `:infrastructure:test` **26 tests / 0 failures / 0 skipped** (6 classes), `app-debug.apk` produced.
+  Cache-busting run `.\gradlew.bat --console=plain --no-build-cache :core:clean :core:test` →
+  `BUILD SUCCESSFUL in 4s` with `:core:compileKotlin`, `:core:compileTestKotlin` and `:core:test` all
+  executed (81 / 0 / 0), so no incremental state hides a folder/package mismatch. Working tree clean
+  afterwards, no untracked leftovers.
 
