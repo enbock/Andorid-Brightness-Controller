@@ -418,7 +418,8 @@ commit `6b3e978`.*
   `infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/AndroidSystemBrightnessClientTest.kt`,
   `infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/AndroidDeviceBrightnessRangeClientTest.kt`,
   `infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/DummyBrightnessAdaptersTest.kt`,
-  `app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt`,
+  `infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/AndroidBrightnessAdaptersTest.kt`
+  (moved by T9),
   and `app/src/main/AndroidManifest.xml`.
 - Focused tests: infra JVM 26/26 passed (including dummy behavior, typed writer failure conversion,
   and range validity); core JVM 80/80 passed. Required builds passed:
@@ -426,7 +427,8 @@ commit `6b3e978`.*
   and `:core:test :infrastructure:test :app:assembleDebug` (all with `--no-daemon`).
 - Emulator: API 36 `medium_phone` (`emulator-5554`). `:infrastructure:connectedDebugAndroidTest`
   passed 1/1 (`AndroidAmbientLightSensorClientTest.lightEventReachesCallback`).
-  The actual brightness tests are in `app/src/androidTest/.../AndroidBrightnessAdaptersTest.kt`
+  The actual brightness tests are in
+  `infrastructure/src/androidTest/.../AndroidBrightnessAdaptersTest.kt` (moved by T9)
   because the infrastructure library instrumentation target is
   `com.ambientbrightness.infrastructure.test`, not the required app package. After
   `adb shell appops set com.ambientbrightness.app WRITE_SETTINGS allow`,

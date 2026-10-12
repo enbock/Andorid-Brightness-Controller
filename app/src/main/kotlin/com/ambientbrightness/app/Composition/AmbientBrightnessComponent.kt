@@ -1,5 +1,6 @@
-package com.ambientbrightness.app
+package com.ambientbrightness.app.Composition
 
+import com.ambientbrightness.app.AmbientLightSensing.Collector.AmbientLightCollector
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightService.DefaultAmbientLightService
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightUseCase.AmbientLightUseCase

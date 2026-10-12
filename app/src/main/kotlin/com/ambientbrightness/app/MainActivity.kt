@@ -3,12 +3,9 @@ package com.ambientbrightness.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import com.ambientbrightness.app.AmbientLightSensing.View.AmbientBrightnessApp
+import com.ambientbrightness.app.Composition.AmbientBrightnessApplication
 import kotlinx.coroutines.Job
 
 /**
@@ -48,15 +45,5 @@ class MainActivity : ComponentActivity() {
         collectionJob?.cancel()
         collectionJob = null
         (application as AmbientBrightnessApplication).component.stop()
-    }
-}
-
-@Composable
-private fun AmbientBrightnessApp() {
-    MaterialTheme {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = MaterialTheme.colorScheme.background,
-        ) { }
     }
 }

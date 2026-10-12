@@ -393,7 +393,7 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   apply the startup timeout → `Unavailable(NotUsable)`, and expose both states through
   `AmbientLightService.availability`; add the collector that carries the non-technical message
   to the caller (no UI). *Files: `:core/.../AmbientLightSensing/AmbientLightService/**`,
-  `:app/src/main/kotlin/com/ambientbrightness/app/AmbientLightCollector/**`.*
+  `:app/src/main/kotlin/com/ambientbrightness/app/AmbientLightSensing/Collector/**` (moved by T9).*
   *Verify: unit tests for AC2.1–AC2.3.*
   *Done: implementation commit `ad7f8a1`; documentation commit `9fdc255`. Added
   `DefaultAmbientLightService` with injectable `startupTimeoutMillis` (default 5,000 ms): it checks
@@ -404,7 +404,8 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   plus the `:app` → `:core` project dependency. Files changed:
   `core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/AmbientLightService/DefaultAmbientLightService.kt`,
   `core/src/test/kotlin/com/ambientbrightness/core/AmbientLightService/DefaultAmbientLightServiceTest.kt`,
-  `app/src/main/kotlin/com/ambientbrightness/app/AmbientLightCollector/AmbientLightCollector.kt`,
+  `app/src/main/kotlin/com/ambientbrightness/app/AmbientLightSensing/Collector/AmbientLightCollector.kt`
+  (moved by T9),
   `app/build.gradle.kts`. Tests: focused `:core:test` → BUILD SUCCESSFUL (54 tests, 0 failures;
   five service tests cover missing sensor, first-reading/profile, timeout, valid zero lux and
   cancellation/stop); `:core:test :infrastructure:test :app:assembleDebug` → BUILD SUCCESSFUL.
@@ -433,9 +434,10 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   :app:assembleDebug --no-daemon` → BUILD SUCCESSFUL; `:app:connectedDebugAndroidTest --no-daemon`
   → BUILD SUCCESSFUL on `medium_phone` API 36 (2 tests, 0 failures). Files changed:
   `app/build.gradle.kts`, `app/src/main/AndroidManifest.xml`,
-  `app/src/main/kotlin/com/ambientbrightness/app/AmbientBrightnessApplication.kt`,
-  `app/src/main/kotlin/com/ambientbrightness/app/AmbientBrightnessComponent/AmbientBrightnessComponent.kt`,
-  `app/src/main/kotlin/com/ambientbrightness/app/AmbientLightCollector/AmbientLightCollector.kt`,
+  `app/src/main/kotlin/com/ambientbrightness/app/Composition/AmbientBrightnessApplication.kt` (moved by T9),
+  `app/src/main/kotlin/com/ambientbrightness/app/Composition/AmbientBrightnessComponent.kt` (moved by T9),
+  `app/src/main/kotlin/com/ambientbrightness/app/AmbientLightSensing/Collector/AmbientLightCollector.kt`
+  (moved by T9),
   `app/src/main/kotlin/com/ambientbrightness/app/MainActivity.kt`,
   `app/src/androidTest/kotlin/com/ambientbrightness/app/AmbientBrightnessComponentTest.kt`.
   The separate progress-document commit is the commit containing this note.*

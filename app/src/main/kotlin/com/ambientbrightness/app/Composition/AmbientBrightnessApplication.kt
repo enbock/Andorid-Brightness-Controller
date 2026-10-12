@@ -1,4 +1,4 @@
-package com.ambientbrightness.app
+package com.ambientbrightness.app.Composition
 
 import android.app.Application
 import android.hardware.SensorManager

@@ -1,4 +1,4 @@
-package com.ambientbrightness.app
+package com.ambientbrightness.app.AmbientLightSensing.Collector
 
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightService.AmbientLightService
 import com.ambientbrightness.core.AmbientLightSensing.LuxSample

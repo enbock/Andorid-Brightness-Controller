@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
 
     <application
-        android:name=".AmbientBrightnessApplication"
+        android:name=".Composition.AmbientBrightnessApplication"
         android:allowBackup="true"
         android:label="Ambient Brightness"
         android:supportsRtl="true"

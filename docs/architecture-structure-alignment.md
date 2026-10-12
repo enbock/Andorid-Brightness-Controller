@@ -114,7 +114,13 @@ directions (`Application → Core`, `Infrastructure → Core`, composition root 
 2. **Composition-root isolation?** → **Decision: yes, enforced.**
    Only `app/.../app/Composition/**` may import `com.ambientbrightness.infrastructure.*`. Everything
    else in `:app` (view, collector) depends on `:core` plus the component facade. Consequence: the
-   adapter test that currently sits in `:app` androidTest moves to `:infrastructure` (T9).
+   adapter test that currently sits in `:app` androidTest moves to `:infrastructure` (T9). The relocation
+   is a move plus a `package`-line change only: the test keeps its three
+   `com.ambientbrightness.infrastructure.AutomaticBrightnessControl.*.Android.*` adapter imports verbatim,
+   because T8 placed those adapters in sub-packages and the module-root package cannot see them. The
+   application class move in the same task also requires `app/src/main/AndroidManifest.xml` to name
+   `.Composition.AmbientBrightnessApplication` — a source edit, not a build-file change (see T9).
+   *Enforcement (clarified in T9):* the rule is enforced **structurally** — `:app` is reorganized so only `Composition/**` imports `com.ambientbrightness.infrastructure.*` — and verified by grep in T10. An automated `:app` guard mirroring the T2/T8 tests was considered and explicitly declined by the Project Owner, because `:app` has no JVM test source set: it would require adding `app/src/test/**` plus `testImplementation(libs.junit)`. Limitation: the composition-root isolation is therefore not machine-checked; a future task may add such a guard.
 3. **Does the refined rule need a streaming exception?** → **Decision: yes, and it is documented in
    the project, not silently ignored.** A cold-`Flow` use case legitimately omits the
    `Request`/`Response` pair: the result is a stream, not a value object, and `AmbientLightService.start()`
@@ -257,26 +263,66 @@ Every task below is therefore fully specified: do not re-open these decisions.
       - Verify: `:infrastructure:test` green; `:app:assembleDebug` green;
         `:infrastructure:compileDebugAndroidTestKotlin` green.
 
-- [ ] **T9 — Structure the `:app` application layer (M)** — depends on: T3, T8
+- [x] **T9 — Structure the `:app` application layer (M)** — depends on: T3, T8
       - `app/.../app/Composition/{AmbientBrightnessApplication,AmbientBrightnessComponent}.kt`
         (package `com.ambientbrightness.app.Composition`) — the only place that may import
         `infrastructure.*` (decision 2 in *Open questions*).
       - `app/.../app/AmbientLightSensing/Collector/AmbientLightCollector.kt`.
-      - `app/.../app/AmbientLightSensing/View/AmbientBrightnessView.kt`: move the private
-        `AmbientBrightnessApp()` composable out of `MainActivity.kt` unchanged; `MainActivity` stays
-        the entry point in the package root and calls it.
-      - Update imports in `app/src/androidTest/**`.
-      - Relocate `app/src/androidTest/.../AndroidBrightnessAdaptersTest.kt` to
-        `infrastructure/src/androidTest/.../`: it exercises `AndroidDeviceBrightnessRangeClient`,
-        `AndroidSystemBrightnessClient` and `AndroidWriteSettingsPermissionChecker`, so it is an
-        infrastructure test that currently forces `:app` to depend on `infrastructure` in test scope
-        (decision 2 in *Open questions*).
+      - `app/.../app/AmbientLightSensing/View/AmbientBrightnessView.kt`: move the composable out of
+        `MainActivity.kt` with its body, signature and name **unchanged except its visibility** — it must
+        change from `private` to `internal`. A `private` top-level function is file-private, so
+        `MainActivity.kt` could not call it after the move; `internal` keeps exactly the current module
+        scope, so `setContent { AmbientBrightnessApp() }` in `MainActivity.kt` stays byte-identical and
+        `:app:assembleDebug` stays green. `MainActivity` stays the entry point in the package root and
+        calls it. (Without this visibility change the task's own verify requirement is unreachable.)
+      - Update imports in `app/src/androidTest/**` (one file): `AmbientBrightnessComponentTest.kt` keeps
+        `package com.ambientbrightness.app` but uses `AmbientBrightnessComponent` unqualified, so it needs
+        `import com.ambientbrightness.app.Composition.AmbientBrightnessComponent` after the component moves
+        into `Composition/`. No other `:app` androidTest file stays behind besides this and the relocated
+        adapter test below.
+      - Relocate `app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt`
+        to `infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/AndroidBrightnessAdaptersTest.kt`
+        (`git mv`) and change **only** its `package` line to `com.ambientbrightness.infrastructure`, so
+        folder and package stay consistent with the plan's folder↔package rule. It exercises
+        `AndroidDeviceBrightnessRangeClient`, `AndroidSystemBrightnessClient` and
+        `AndroidWriteSettingsPermissionChecker`, so it is an infrastructure test that currently forces
+        `:app` to depend on `infrastructure` in test scope (decision 2 in *Open questions*).
+      - **Keep the three adapter imports in the relocated test exactly as they are.** The file's imports
+        `com.ambientbrightness.infrastructure.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Android.AndroidDeviceBrightnessRangeClient`,
+        `...AutomaticBrightnessControl.SystemBrightnessClient.Android.AndroidSystemBrightnessClient` and
+        `...AutomaticBrightnessControl.WriteSettingsPermissionChecker.Android.AndroidWriteSettingsPermissionChecker`
+        are retained verbatim: after T8 those three adapters live in **sub**-packages, so a test declaring
+        the module-root package `com.ambientbrightness.infrastructure` cannot resolve them without the
+        imports — "dropping the three lines" would make
+        `:infrastructure:compileDebugAndroidTestKotlin` fail with unresolved references. The lines only
+        change meaning (cross-module import → same-module import); they are byte-identical after the move.
+        This mirrors the sibling
+        `infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/AndroidAmbientLightSensorClientTest.kt`,
+        which declares the module-root package, ignores same-package visibility and keeps its explicit
+        import of `...AmbientLightSensing.AmbientLightSensorClient.Android.AndroidAmbientLightSensorClient`.
+      - The relocated test is otherwise untouched: same class name, same `@RunWith`, the same three tests,
+        the same assertions, the same `assumeTrue` guards and the same two private helpers
+        (`setWriteSettingsAppOpMode`, `toCommandOutput`). No test is added, removed or renamed; the appops
+        string literals and the `InstrumentationRegistry` calls are not edited.
+      - **Update `app/src/main/AndroidManifest.xml`**: `<application android:name=".AmbientBrightnessApplication" …>`
+        becomes `android:name=".Composition.AmbientBrightnessApplication"`. The relative name resolves
+        against the `namespace`/`applicationId` `com.ambientbrightness.app`, and the class moves to
+        `com.ambientbrightness.app.Composition`, so the manifest entry — not in the original T9 file
+        list — must follow the move. Without it `:app:assembleDebug` still builds but the process crashes
+        at start-up (`ClassNotFoundException`), a silent behaviour break the compiler cannot catch.
+        This is a source-file edit only: `app/build.gradle.kts` and `infrastructure/build.gradle.kts` stay
+        untouched (T9 has no build-file change), and the `.MainActivity` entry is unaffected because
+        `MainActivity` stays in the package root.
       - Correct the `:app` paths in `docs/feature-ambient-light-sensing.md` (T5/collector/component
         file lists) and in `docs/feature-background-service.md` where `app/.../app/**` is referenced.
       - Out of scope: no new UI, no ViewModel behaviour, no new callbacks — the view stays the current
         empty `Scaffold`.
-      - Verify: `:app:assembleDebug` green; `connectedDebugAndroidTest` on the API 36 emulator where
-        available.
+      - Verify: `:app:assembleDebug` green; `:infrastructure:compileDebugAndroidTestKotlin` green (the
+        compile proof that the relocated test keeps its three adapter imports — this is the task's hard
+        rule for the relocation); `connectedDebugAndroidTest` on the API 36 emulator where available. The
+        manifest rename is **not** covered by any compile task, so additionally install and launch the
+        debug APK once on the API 36 emulator where available to confirm `AmbientBrightnessApplication` is
+        instantiated.
 
 - [ ] **T10 — Documentation sweep and final verification (S)** — depends on: T3–T9
       - Several docs were already corrected inside T3–T9; this task is the final, exhaustive check.
@@ -711,4 +757,113 @@ partially finished run never leaves the docs describing a stale layout.
   the two clean/test pairs were run as separate commands as the checklist phrases them.
 - No deviation from the T8 design; the refactor is move/package/import only, the only test edits are
   added imports plus the new guard, and every existing test count is unchanged.
+
+### T9 — Structure the `:app` application layer
+
+- Done in one commit, `refactor(app): separate the composition root, collector and view` (the SHA cannot
+  appear in its own commit; the T10 sweep records it).
+- Three files moved with `git mv` and one composable extracted into a new file; the emptied
+  `AmbientBrightnessComponent/` and `AmbientLightCollector/` directories were deleted, so
+  `app/src/main/kotlin/com/ambientbrightness/app/` now contains only `MainActivity.kt` plus the
+  `Composition/` and `AmbientLightSensing/` trees. Old → new mapping (path **and** package):
+
+| Old path (package `com.ambientbrightness.app`) | New path | New package |
+| --- | --- | --- |
+| `AmbientBrightnessApplication.kt` | `Composition/AmbientBrightnessApplication.kt` | `com.ambientbrightness.app.Composition` |
+| `AmbientBrightnessComponent/AmbientBrightnessComponent.kt` | `Composition/AmbientBrightnessComponent.kt` | `com.ambientbrightness.app.Composition` |
+| `AmbientLightCollector/AmbientLightCollector.kt` | `AmbientLightSensing/Collector/AmbientLightCollector.kt` | `com.ambientbrightness.app.AmbientLightSensing.Collector` |
+| `MainActivity.kt` (root, plus the `private @Composable AmbientBrightnessApp()` it declared) | `MainActivity.kt` (root, package unchanged) + new `AmbientLightSensing/View/AmbientBrightnessView.kt` | `com.ambientbrightness.app.AmbientLightSensing.View` |
+
+- View extraction: the composable body moved byte-identically
+  (`MaterialTheme { Scaffold(modifier = Modifier.fillMaxSize(), containerColor =
+  MaterialTheme.colorScheme.background) { } }`) into the new `AmbientLightSensing/View/AmbientBrightnessView.kt`;
+  besides the file/package move the only change is the visibility, `private` → `internal` (a top-level
+  `private` function is file-private and could not be called from `MainActivity.kt` in another package).
+  The function name `AmbientBrightnessApp` is unchanged, and the file gained one KDoc line describing it
+  as the top-level view composable. `MainActivity` keeps its lifecycle logic byte-identically; it now
+  imports `...AmbientLightSensing.View.AmbientBrightnessApp` and `...Composition.AmbientBrightnessApplication`
+  and lost the five Compose imports (`fillMaxSize`, `MaterialTheme`, `Scaffold`, `Composable`, `Modifier`)
+  that only the extracted composable used. `AmbientBrightnessComponent` gained
+  `import com.ambientbrightness.app.AmbientLightSensing.Collector.AmbientLightCollector`; the collector and
+  the application file changed only their `package` line (the application keeps its two `infrastructure.*`
+  imports). No new UI, no ViewModel, no new callback, no behaviour change — the view stays the empty
+  `Scaffold`.
+- Composition-root isolation enforced structurally (decision 2, whose *Enforcement* clarification is
+  appended there). Grep proof: `git grep -n "com\.ambientbrightness\.infrastructure\." -- app/src` returns
+  exactly two hits, both under `Composition/` —
+  `app/src/main/kotlin/com/ambientbrightness/app/Composition/AmbientBrightnessApplication.kt:7`
+  (`...AmbientLightSensing.AmbientLightSensorClient.Android.AndroidAmbientLightSensorClient`) and `:8`
+  (`...AmbientLightSensing.ScreenStateClient.Android.AndroidScreenStateClient`). No file under
+  `AmbientLightSensing/**` and not `MainActivity.kt` references `infrastructure.*`; they depend on `:core`
+  plus the component facade. No automated `:app` guard was added (declined by the Project Owner, see
+  decision 2), so the isolation stays grep-verified here and in T10.
+- Package/classifier trap avoided as designed: every file lands in `Composition/`,
+  `AmbientLightSensing/Collector/` or `AmbientLightSensing/View/`, and no file sits directly in
+  `.../app/AmbientLightSensing/`, so no package name equals the FQ name of a classifier declared in its
+  parent package.
+- Adapter test relocated: `app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt`
+  → `infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/AndroidBrightnessAdaptersTest.kt`
+  via `git mv`, **only** the `package` line changed to `com.ambientbrightness.infrastructure`. Same class
+  name, same `@RunWith(AndroidJUnit4::class)`, the same three tests, assertions and `assumeTrue` guards,
+  the same two private helpers; nothing added, removed, renamed or greyed out. The three adapter imports
+  are **kept** (the T9 "drop those lines" instruction was withdrawn after verification): post-T8 the three
+  adapters live in `...AutomaticBrightnessControl.<Client>.Android` sub-packages, so a test declaring the
+  module-root package cannot resolve them and dropping the imports fails
+  `:infrastructure:compileDebugAndroidTestKotlin` with unresolved references. The lines are byte-identical
+  after the move — they only flip from cross-module to same-module imports — and mirror the sibling
+  `AndroidAmbientLightSensorClientTest.kt`.
+- `AmbientBrightnessComponentTest.kt` stays in `app/src/androidTest/kotlin/com/ambientbrightness/app/` with
+  one added import, `com.ambientbrightness.app.Composition.AmbientBrightnessComponent`; its assertions are
+  untouched. No build file changed: `app/build.gradle.kts` keeps `implementation(project(":infrastructure"))`
+  (the composition root constructs the Android adapters) and `infrastructure/build.gradle.kts` already
+  declared `androidTestImplementation(libs.junit)`, `libs.androidx.test.runner` and
+  `libs.androidx.test.ext.junit`, so `:app` no longer needs the instrumented adapter test to exercise them.
+- `app/src/main/AndroidManifest.xml` follows the move: `android:name=".AmbientBrightnessApplication"` →
+  `android:name=".Composition.AmbientBrightnessApplication"` (source edit only, no build-file change; the
+  `.MainActivity` entry is unaffected because `MainActivity` stays in the package root). No compile task
+  covers this rename.
+- Docs corrected in the same commit (paths fixed in place, marker `(moved by T9)` appended, surrounding
+  narrative untouched):
+  - `docs/feature-ambient-light-sensing.md`: the T4 `Files:` entry
+    `:app/.../app/AmbientLightCollector/**` → `:app/.../app/AmbientLightSensing/Collector/**`; the T4
+    `Done` file list entry for `AmbientLightCollector.kt`; and the T5 `Files changed:` entries for
+    `AmbientBrightnessApplication.kt`, `AmbientBrightnessComponent.kt` and `AmbientLightCollector.kt`
+    (now `Composition/` and `AmbientLightSensing/Collector/`). `MainActivity.kt`,
+    `app/src/main/AndroidManifest.xml`, `app/build.gradle.kts`, the remaining androidTest path and the
+    `:app/src/main/kotlin/com/ambientbrightness/app/**` wildcard stayed valid and were not touched.
+  - `docs/feature-automatic-brightness-control.md`: the `AndroidBrightnessAdaptersTest.kt` entry of the F2
+    `Files changed:` list and the *"The actual brightness tests are in …"* sentence now point at
+    `infrastructure/src/androidTest/...`.
+  - `docs/feature-background-service.md`, `feature-response-tuning.md`, `feature-manual-brightness-offset.md`,
+    `feature-permissions-setup-flow.md`, `feature-status-dashboard.md`: inspected, no change needed — their
+    `:app/src/main/kotlin/com/ambientbrightness/app/**` entries are wildcards that still match and every
+    concrete path they name (`AndroidManifest.xml`, `MainActivity.kt`, `res/values/…`) still exists.
+- Verification (all green, exact commands):
+  - `.\gradlew.bat --console=plain :core:test :infrastructure:test :app:assembleDebug
+    :infrastructure:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestKotlin` →
+    `BUILD SUCCESSFUL in 4s` (76 actionable tasks: 14 executed, 5 from cache, 57 up-to-date) with
+    `:app:packageDebug` producing `app-debug.apk`.
+  - `:core:test` **81 tests / 0 failures / 0 skipped** (16 classes, unchanged);
+    `:infrastructure:test` **27 tests / 0 failures / 0 skipped** (7 classes, unchanged; re-run with
+    `.\gradlew.bat --console=plain --no-build-cache :infrastructure:test --rerun-tasks` →
+    `BUILD SUCCESSFUL in 3s`, 17 tasks executed).
+  - Cache-busting after the moves, as two **separate** invocations (one graph containing both `clean`
+    tasks aborts with Gradle's *"Unable to make progress running work"*):
+    `.\gradlew.bat --console=plain --no-build-cache :app:clean :app:assembleDebug` →
+    `BUILD SUCCESSFUL in 6s` (37 executed) with `:app:compileDebugKotlin`, `:app:packageDebug` and
+    `:app:assembleDebug` executed, and
+    `.\gradlew.bat --console=plain --no-build-cache :core:clean :core:test` →
+    `BUILD SUCCESSFUL in 3s` with `:core:compileKotlin`, `:core:compileTestKotlin` and `:core:test`
+    executed (81 / 0 / 0).
+  - Only the instrumented tests were compiled — no emulator was provisioned and `connectedAndroidTest` was
+    not run, per the checklist. Nothing greyed out: no `@Disabled`, no `@Ignore`, no assertion edited and no
+    test count changed.
+- Deviations: none from the clarified T9 design. Two ambiguities were escalated to the Technical Architect
+  before implementation and resolved in this document: (1) the relocated adapter test keeps its three
+  adapter imports (dropping them cannot compile against the post-T8 sub-packages) and (2) the
+  `AndroidManifest.xml` entry must follow the `AmbientBrightnessApplication` move. Residual risk for T10/a
+  device run: the manifest rename is invisible to every compile task, and the relocated test now runs
+  against the `:infrastructure` instrumentation `targetContext` while its AppOps helper still targets
+  `com.ambientbrightness.app`, so a real `connectedDebugAndroidTest` run must confirm both (the plan
+  forbids editing those assertions).
 

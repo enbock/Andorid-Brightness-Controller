@@ -1,6 +1,7 @@
 package com.ambientbrightness.app
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ambientbrightness.app.Composition.AmbientBrightnessComponent
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
 import com.ambientbrightness.core.AmbientLightSensing.LuxSample
 import com.ambientbrightness.core.AmbientLightSensing.ScreenStateClient
