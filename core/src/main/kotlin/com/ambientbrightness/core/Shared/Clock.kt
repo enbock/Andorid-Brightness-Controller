@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.Shared
 
 /**
  * Abstraction over the system wall clock so that time-dependent logic can be

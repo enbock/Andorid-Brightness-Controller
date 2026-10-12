@@ -1,7 +1,7 @@
 package com.ambientbrightness.infrastructure
 
-import com.ambientbrightness.core.SensorAvailability
-import com.ambientbrightness.core.SensorUnavailableReason
+import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
+import com.ambientbrightness.core.AmbientLightSensing.SensorUnavailableReason
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

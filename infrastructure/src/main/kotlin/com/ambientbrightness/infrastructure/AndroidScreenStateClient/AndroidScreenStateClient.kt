@@ -4,7 +4,7 @@ import android.hardware.display.DisplayManager
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
-import com.ambientbrightness.core.ScreenStateClient
+import com.ambientbrightness.core.AmbientLightSensing.ScreenStateClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.SharingStarted

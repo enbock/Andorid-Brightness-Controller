@@ -1,5 +1,6 @@
 package com.ambientbrightness.core
 
+import com.ambientbrightness.core.AmbientLightSensing.LightLevel.LightLevel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 

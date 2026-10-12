@@ -1,5 +1,8 @@
 package com.ambientbrightness.core
 
+import com.ambientbrightness.core.AmbientLightSensing.LuxSample
+import com.ambientbrightness.core.AmbientLightSensing.ReadingStabiliser.ReadingStabiliser
+
 /**
  * Recording [ReadingStabiliser] test double. [resultProvider] decides what is returned, so throttle
  * behaviour can be asserted independently of the real stabiliser.

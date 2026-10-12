@@ -1,6 +1,6 @@
 package com.ambientbrightness.infrastructure
 
-import com.ambientbrightness.core.ScreenStateClient
+import com.ambientbrightness.core.AmbientLightSensing.ScreenStateClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

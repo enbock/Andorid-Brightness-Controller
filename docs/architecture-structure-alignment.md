@@ -149,7 +149,7 @@ Every task below is therefore fully specified: do not re-open these decisions.
       - Verify: `:core:test` green; a scratch file with a mismatching `package` makes it fail; delete
         the scratch file afterwards.
 
-- [ ] **T3 — Create the `AmbientLightSensing` responsibility in `:core` (M)** — depends on: T1
+- [x] **T3 — Create the `AmbientLightSensing` responsibility in `:core` (M)** — depends on: T1
       - Move to `core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/`:
         `AmbientLightService/{AmbientLightService,DefaultAmbientLightService}.kt`,
         `AmbientLightUseCase/AmbientLightUseCase.kt`, `ReadingStabiliser/ReadingStabiliser.kt`,
@@ -331,27 +331,37 @@ partially finished run never leaves the docs describing a stale layout.
   `:app:assembleDebug` green (`app-debug.apk` produced).
 - No source change in this task; only this note was added.
 
-### T3 — in progress (blocked, resumed)
+### T3 — Create the `AmbientLightSensing` responsibility in `:core`
 
-State when the first implementation run stopped — nothing was lost, the work is **staged in the index**:
-
-- Staged: the `AmbientLightSensing/**` moves plus `core/.../core/Shared/Clock.kt`, the package rewrites
-  in `core/src/test/**`, and the resulting import fixes in `infrastructure/**` and `app/**`.
-- Not done yet: the blocker fix below, the verification run and the T3 commit.
-
-Blocker and diagnosis (now fixed in the plan — see T3 and the risk table):
-
-```
-e: .../core/BrightnessMappingCurve/DefaultBrightnessMappingCurve.kt:1:9 Package conflicts with classifier com.ambientbrightness.core.BrightnessMappingCurve
-e: .../core/HysteresisGate/DefaultHysteresisGate.kt:1:9 Package conflicts with classifier com.ambientbrightness.core.HysteresisGate
-```
-
-The interfaces `BrightnessMappingCurve` and `HysteresisGate` still declared
-`package com.ambientbrightness.core`, so the sub-packages of the same name collided with them. The
-condition dates back to the F2 commits and stayed masked by incremental compilation; the T3 moves forced
-a full module re-analysis and surfaced it. `:core:compileKotlin` fails for this reason alone — no T3
-change is at fault. Resolution: the `BrightnessMappingCurve`/`HysteresisGate` merges move from T5 into T3.
-
-Lesson for the remaining tasks (especially T8/T9): the compiler analyses the whole module, so a
-partially migrated package layout aborts the build even when the files of the current task are
-consistent. Every task must end in a state where no package name equals a classifier name.
+- Done in commit (this commit); this includes the
+  `BrightnessMappingCurve`/`HysteresisGate` part that was pulled forward from T5 by the blocker fix.
+- Moved with `git mv`; every moved file declares the package of its new folder, and the emptied old
+  directories were deleted: `AmbientLightSensing/{LuxSample,SensorProfile,SensorAvailability,
+  SensorUnavailableReason,AmbientLightSensorClient,ScreenStateClient}.kt`,
+  `AmbientLightSensing/AmbientLightService/{AmbientLightService,DefaultAmbientLightService}.kt`,
+  `AmbientLightSensing/AmbientLightUseCase/AmbientLightUseCase.kt`,
+  `AmbientLightSensing/ReadingStabiliser/ReadingStabiliser.kt`,
+  `AmbientLightSensing/OutlierClampingStabiliser/OutlierClampingStabiliser.kt`,
+  `AmbientLightSensing/LightLevel/{LightLevel,LightLevelClassifier}.kt`, and `Clock/Clock.kt` →
+  `Shared/Clock.kt` (decision 1). The layer root now holds only the T4 scope.
+- Blocker fix as planned: `core/.../core/BrightnessMappingCurve.kt` →
+  `core/.../core/BrightnessMappingCurve/BrightnessMappingCurve.kt` and `core/.../core/HysteresisGate.kt`
+  → `core/.../core/HysteresisGate/HysteresisGate.kt`, each with the package of its new folder; the now
+  redundant self-imports in `DefaultBrightnessMappingCurve`/`DefaultHysteresisGate` were removed and
+  `core/src/test/.../testdoubles/BrightnessContractFakes.kt` imports both interfaces from their new
+  packages. `:core:compileKotlin` is green again — the collision existed since the F2 commits and was
+  only masked by incremental compilation.
+- Outside `:core` only imports changed: `infrastructure/src/main/**`, `infrastructure/src/test/**`,
+  `infrastructure/src/androidTest/**`, `app/src/main/**`, `app/src/androidTest/**`. No restructuring of
+  `:infrastructure`/`:app` (T8/T9) and no test-package regroup inside `core/src/test/**`.
+- Deviation found while fixing imports: `com.ambientbrightness.core.AmbientLightSensing.LightLevel` now
+  names a *package*, so `LightLevelTest` and `LightLevelClassifierTest` had to import
+  `...AmbientLightSensing.LightLevel.LightLevel`.
+- Docs corrected in this commit: `docs/feature-ambient-light-sensing.md` (the `:core` file/`Files:`
+  lists, including the `Clock` → `Shared/Clock.kt` entry) and `docs/feature-automatic-brightness-control.md`
+  (the two interface paths changed by the blocker fix). `docs/feature-response-tuning.md` contains no
+  `Clock` path reference, so it needed no change.
+- Verification: `.\gradlew.bat --console=plain :core:test :infrastructure:test :app:assembleDebug`
+  → `BUILD SUCCESSFUL`; `:core:test` **80 tests / 0 failures / 0 skipped** (15 classes),
+  `:infrastructure:test` **26 tests / 0 failures / 0 skipped** (6 classes), `:app:assembleDebug` green
+  (`app-debug.apk`). `:infrastructure:compileDebugAndroidTestKotlin` also green.

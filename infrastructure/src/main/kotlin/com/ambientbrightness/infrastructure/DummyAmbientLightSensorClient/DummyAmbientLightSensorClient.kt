@@ -1,9 +1,9 @@
 package com.ambientbrightness.infrastructure
 
-import com.ambientbrightness.core.AmbientLightSensorClient
-import com.ambientbrightness.core.SensorAvailability
-import com.ambientbrightness.core.SensorProfile
-import com.ambientbrightness.core.SensorUnavailableReason
+import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
+import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
+import com.ambientbrightness.core.AmbientLightSensing.SensorProfile
+import com.ambientbrightness.core.AmbientLightSensing.SensorUnavailableReason
 
 /**
  * Deterministic [AmbientLightSensorClient] for tests and development on hardware without a light

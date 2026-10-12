@@ -1,5 +1,7 @@
 package com.ambientbrightness.core
 
+import com.ambientbrightness.core.AmbientLightSensing.LuxSample
+import com.ambientbrightness.core.AmbientLightSensing.OutlierClampingStabiliser.OutlierClampingStabiliser
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull

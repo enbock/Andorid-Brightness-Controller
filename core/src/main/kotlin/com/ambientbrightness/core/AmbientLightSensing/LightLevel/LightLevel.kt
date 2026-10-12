@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AmbientLightSensing.LightLevel
 
 /**
  * Qualitative ambient light level derived from a lux value (Decision D10).

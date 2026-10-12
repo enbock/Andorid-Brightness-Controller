@@ -1,5 +1,7 @@
 package com.ambientbrightness.core
 
+import com.ambientbrightness.core.Shared.Clock
+
 /**
  * Manually advanced [Clock] for deterministic tests.
  */

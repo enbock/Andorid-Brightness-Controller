@@ -1,5 +1,9 @@
 package com.ambientbrightness.core
 
+import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
+import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
+import com.ambientbrightness.core.AmbientLightSensing.SensorUnavailableReason
+
 /**
  * Controllable [AmbientLightSensorClient] test double: records register/unregister calls and lets a
  * test push raw lux readings into the registered callback.

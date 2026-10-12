@@ -1,11 +1,12 @@
 package com.ambientbrightness.app
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.ambientbrightness.core.AmbientLightSensorClient
-import com.ambientbrightness.core.LuxSample
-import com.ambientbrightness.core.ScreenStateClient
-import com.ambientbrightness.core.SensorAvailability
-import com.ambientbrightness.core.SensorProfile
+import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
+import com.ambientbrightness.core.AmbientLightSensing.LuxSample
+import com.ambientbrightness.core.AmbientLightSensing.ScreenStateClient
+import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
+import com.ambientbrightness.core.AmbientLightSensing.SensorProfile
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,7 +15,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import java.util.concurrent.CopyOnWriteArrayList
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

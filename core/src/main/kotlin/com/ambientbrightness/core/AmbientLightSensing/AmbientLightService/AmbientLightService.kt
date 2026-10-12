@@ -1,5 +1,9 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AmbientLightSensing.AmbientLightService
 
+import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
+import com.ambientbrightness.core.AmbientLightSensing.LuxSample
+import com.ambientbrightness.core.AmbientLightSensing.ReadingStabiliser.ReadingStabiliser
+import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 

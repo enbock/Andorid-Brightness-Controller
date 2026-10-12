@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AmbientLightSensing
 
 /**
  * Whether the app can currently sense ambient light.

@@ -1,4 +1,6 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AmbientLightSensing
+
+import com.ambientbrightness.core.AmbientLightSensing.AmbientLightService.AmbientLightService
 
 /**
  * Raw access to the platform's ambient light sensor; the Android adapter lives in

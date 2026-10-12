@@ -5,13 +5,13 @@ import android.hardware.Sensor
 import android.hardware.SensorManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.ambientbrightness.core.SensorAvailability
+import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 /**
  * Device-dependent smoke test: verifies that a real light event reaches the callback.

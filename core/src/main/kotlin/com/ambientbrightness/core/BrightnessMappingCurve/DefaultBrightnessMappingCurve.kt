@@ -1,6 +1,5 @@
 package com.ambientbrightness.core.BrightnessMappingCurve
 
-import com.ambientbrightness.core.BrightnessMappingCurve
 import kotlin.math.log10
 
 /** Default monotonic, log-lux piecewise-linear mapping with a readable low-light floor. */

@@ -282,7 +282,8 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   *Design gaps the architect resolved before implementation (classifier thresholds, availability
   shape, `ReadingStabiliser` signature, client interfaces) are recorded in `### Architecture &
   Components` / `### Data Flow` and landed with this commit; no change to acceptance criteria.*
-  *Files added: `:core/src/main/kotlin/com/ambientbrightness/core/{LuxSample,SensorProfile,SensorUnavailableReason,SensorAvailability,LightLevel,LightLevelClassifier,AmbientLightSensorClient,ScreenStateClient,ReadingStabiliser,AmbientLightService}/<Type>.kt`,
+  *Files added: `:core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/{LuxSample,SensorProfile,SensorUnavailableReason,SensorAvailability,AmbientLightSensorClient,ScreenStateClient}.kt`,
+  `:core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/{LightLevel/LightLevel,LightLevel/LightLevelClassifier,ReadingStabiliser/ReadingStabiliser,AmbientLightService/AmbientLightService}.kt`,
   `:core/src/test/kotlin/com/ambientbrightness/core/{LuxSample,SensorProfile,SensorAvailability,LightLevel,LightLevelClassifier,AmbientLightService}/<Type>Test.kt`
   and `:core/build.gradle.kts` (catalog dependency).*
   *Public boundary signatures:*
@@ -351,7 +352,7 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
 - [x] **T3 — Stabiliser + throttled collection use-case**: implement `ReadingStabiliser`,
   `OutlierClampingStabiliser` (clamp, outlier rejection, 0-lux validity) and `AmbientLightUseCase`
   with injectable `Clock` and injected stabiliser, throttling to one value per interval.
-  *Files: `:core/src/main/kotlin/com/ambientbrightness/core/AmbientLightUseCase/**`.*
+  *Files: `:core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/AmbientLightUseCase/**`.*
   *Verify: unit tests for AC1.2, AC3.1–AC3.4 with fake clients and a fixed clock.*
   *Done: commit `071f29d`. Added `Clock`/`SystemClock` (`:core`, pure Kotlin),
   `OutlierClampingStabiliser` (clamps to `0f..maxRangeLux` keeping the timestamp, always accepts the
@@ -364,7 +365,8 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   and emits only non-null results; `unregister()` runs once in a `finally` block).
   *Defaults actually used: `DEFAULT_SAMPLING_INTERVAL_MILLIS = 500L`; `OutlierClampingStabiliser`
   `outlierFactor = 3f`, `minOutlierDeltaLux = 20f`, `consecutiveRejectionsBeforeAccept = 3`.*
-  *Files added: `:core/src/main/kotlin/com/ambientbrightness/core/{Clock/Clock,OutlierClampingStabiliser/OutlierClampingStabiliser,AmbientLightUseCase/AmbientLightUseCase}.kt`,
+  *Files added: `:core/src/main/kotlin/com/ambientbrightness/core/Shared/Clock.kt`,
+  `:core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/{OutlierClampingStabiliser/OutlierClampingStabiliser,AmbientLightUseCase/AmbientLightUseCase}.kt`,
   `:core/src/test/kotlin/com/ambientbrightness/core/{OutlierClampingStabiliser/OutlierClampingStabiliserTest,AmbientLightUseCase/AmbientLightUseCaseTest}.kt`,
   `:core/src/test/kotlin/com/ambientbrightness/core/testdoubles/{FakeClock,FakeAmbientLightSensorClient,FakeReadingStabiliser}.kt`;
   changed `:core/build.gradle.kts` (`testImplementation(libs.kotlinx.coroutines.test)`).*
@@ -379,7 +381,7 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
 - [x] **T4 — Availability, startup timeout and status surfacing**: resolve availability at start,
   apply the startup timeout → `Unavailable(NotUsable)`, and expose both states through
   `AmbientLightService.availability`; add the collector that carries the non-technical message
-  to the caller (no UI). *Files: `:core/.../AmbientLightService/**`,
+  to the caller (no UI). *Files: `:core/.../AmbientLightSensing/AmbientLightService/**`,
   `:app/src/main/kotlin/com/ambientbrightness/app/AmbientLightCollector/**`.*
   *Verify: unit tests for AC2.1–AC2.3.*
   *Done: implementation commit `ad7f8a1`; documentation commit `9fdc255`. Added
@@ -389,7 +391,7 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   collections; `stop()` cancels the session and invokes the client's idempotent unregister.
   Added the app `AmbientLightCollector` to forward samples and availability to caller callbacks,
   plus the `:app` → `:core` project dependency. Files changed:
-  `core/src/main/kotlin/com/ambientbrightness/core/AmbientLightService/DefaultAmbientLightService.kt`,
+  `core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/AmbientLightService/DefaultAmbientLightService.kt`,
   `core/src/test/kotlin/com/ambientbrightness/core/AmbientLightService/DefaultAmbientLightServiceTest.kt`,
   `app/src/main/kotlin/com/ambientbrightness/app/AmbientLightCollector/AmbientLightCollector.kt`,
   `app/build.gradle.kts`. Tests: focused `:core:test` → BUILD SUCCESSFUL (54 tests, 0 failures;

@@ -2,7 +2,7 @@ package com.ambientbrightness.core.testdoubles
 
 import com.ambientbrightness.core.AutomaticBrightnessController
 import com.ambientbrightness.core.BrightnessContext
-import com.ambientbrightness.core.BrightnessMappingCurve
+import com.ambientbrightness.core.BrightnessMappingCurve.BrightnessMappingCurve
 import com.ambientbrightness.core.BrightnessRange
 import com.ambientbrightness.core.BrightnessStatus
 import com.ambientbrightness.core.BrightnessTransform
@@ -10,7 +10,7 @@ import com.ambientbrightness.core.BrightnessValue
 import com.ambientbrightness.core.BrightnessWriteResult
 import com.ambientbrightness.core.BuiltInAdaptiveBrightnessState
 import com.ambientbrightness.core.DeviceBrightnessRangeClient
-import com.ambientbrightness.core.HysteresisGate
+import com.ambientbrightness.core.HysteresisGate.HysteresisGate
 import com.ambientbrightness.core.SystemBrightnessClient
 import com.ambientbrightness.core.WriteSettingsPermissionChecker
 import kotlinx.coroutines.flow.MutableStateFlow

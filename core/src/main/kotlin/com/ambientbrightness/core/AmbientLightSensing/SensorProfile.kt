@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AmbientLightSensing
 
 /**
  * Diagnostic description of the ambient light sensor the app is bound to (AC2.2).

@@ -1,4 +1,7 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AmbientLightSensing.ReadingStabiliser
+
+import com.ambientbrightness.core.AmbientLightSensing.AmbientLightUseCase.AmbientLightUseCase
+import com.ambientbrightness.core.AmbientLightSensing.LuxSample
 
 /**
  * Turns a raw reading into the value the brightness pipeline is allowed to use (User Story 3).

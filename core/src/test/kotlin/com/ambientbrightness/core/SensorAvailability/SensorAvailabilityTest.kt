@@ -1,5 +1,8 @@
 package com.ambientbrightness.core
 
+import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
+import com.ambientbrightness.core.AmbientLightSensing.SensorProfile
+import com.ambientbrightness.core.AmbientLightSensing.SensorUnavailableReason
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals

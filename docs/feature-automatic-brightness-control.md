@@ -314,7 +314,7 @@ that connects the F1 stream, the status surface and the composition root.
 
 - `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessController.kt`
 - `core/src/main/kotlin/com/ambientbrightness/core/BrightnessContext.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessMappingCurve.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessMappingCurve/BrightnessMappingCurve.kt`
 - `core/src/main/kotlin/com/ambientbrightness/core/BrightnessRange.kt`
 - `core/src/main/kotlin/com/ambientbrightness/core/BrightnessSnapshot.kt`
 - `core/src/main/kotlin/com/ambientbrightness/core/BrightnessStatus.kt`
@@ -323,7 +323,7 @@ that connects the F1 stream, the status surface and the composition root.
 - `core/src/main/kotlin/com/ambientbrightness/core/BrightnessWriteResult.kt`
 - `core/src/main/kotlin/com/ambientbrightness/core/BuiltInAdaptiveBrightnessState.kt`
 - `core/src/main/kotlin/com/ambientbrightness/core/DeviceBrightnessRangeClient.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/HysteresisGate.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/HysteresisGate/HysteresisGate.kt`
 - `core/src/main/kotlin/com/ambientbrightness/core/SystemBrightnessClient.kt`
 - `core/src/main/kotlin/com/ambientbrightness/core/WriteSettingsPermissionChecker.kt`
 - `core/src/test/kotlin/com/ambientbrightness/core/BrightnessContractsTest.kt`

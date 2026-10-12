@@ -1,6 +1,6 @@
 package com.ambientbrightness.infrastructure
 
-import com.ambientbrightness.core.SensorProfile
+import com.ambientbrightness.core.AmbientLightSensing.SensorProfile
 
 /**
  * Builds a [SensorProfile] from the raw values the Android framework reports.

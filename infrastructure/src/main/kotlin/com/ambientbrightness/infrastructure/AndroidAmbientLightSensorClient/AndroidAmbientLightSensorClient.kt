@@ -4,9 +4,9 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import com.ambientbrightness.core.AmbientLightSensorClient
-import com.ambientbrightness.core.SensorAvailability
-import com.ambientbrightness.core.SensorUnavailableReason
+import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
+import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
+import com.ambientbrightness.core.AmbientLightSensing.SensorUnavailableReason
 
 /**
  * [AmbientLightSensorClient] backed by the Android [SensorManager].

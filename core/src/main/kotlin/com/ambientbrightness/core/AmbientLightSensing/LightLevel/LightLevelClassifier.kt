@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AmbientLightSensing.LightLevel
 
 /**
  * Maps a lux value to a [LightLevel] (Decision D10, User Story 3).

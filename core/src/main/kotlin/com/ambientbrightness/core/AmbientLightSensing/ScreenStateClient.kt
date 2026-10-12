@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AmbientLightSensing
 
 import kotlinx.coroutines.flow.StateFlow
 

@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AmbientLightSensing
 
 /**
  * Machine-readable reason why ambient light sensing cannot be used on this device (AC2.1, AC2.3).

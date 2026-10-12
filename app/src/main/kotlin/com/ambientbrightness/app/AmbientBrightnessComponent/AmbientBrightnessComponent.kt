@@ -1,12 +1,12 @@
 package com.ambientbrightness.app
 
-import com.ambientbrightness.core.AmbientLightSensorClient
-import com.ambientbrightness.core.AmbientLightUseCase
-import com.ambientbrightness.core.DefaultAmbientLightService
-import com.ambientbrightness.core.OutlierClampingStabiliser
-import com.ambientbrightness.core.ScreenStateClient
-import com.ambientbrightness.core.SensorAvailability
-import com.ambientbrightness.core.SystemClock
+import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
+import com.ambientbrightness.core.AmbientLightSensing.AmbientLightService.DefaultAmbientLightService
+import com.ambientbrightness.core.AmbientLightSensing.AmbientLightUseCase.AmbientLightUseCase
+import com.ambientbrightness.core.AmbientLightSensing.OutlierClampingStabiliser.OutlierClampingStabiliser
+import com.ambientbrightness.core.AmbientLightSensing.ScreenStateClient
+import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
+import com.ambientbrightness.core.Shared.SystemClock
 
 /**
  * App-scoped manual composition root for ambient sensing. Its client parameters also let tests
