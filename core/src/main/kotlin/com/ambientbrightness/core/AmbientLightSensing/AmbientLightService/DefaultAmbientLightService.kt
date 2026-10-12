@@ -1,11 +1,12 @@
 package com.ambientbrightness.core.AmbientLightSensing.AmbientLightService
 
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
+import com.ambientbrightness.core.AmbientLightSensing.AmbientLightService.Task.CollectionSessionRegistry
+import com.ambientbrightness.core.AmbientLightSensing.AmbientLightService.Task.StartupAvailabilityGate
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightUseCase.AmbientLightUseCase
 import com.ambientbrightness.core.AmbientLightSensing.LuxSample
 import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
 import com.ambientbrightness.core.AmbientLightSensing.SensorUnavailableReason
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -17,9 +18,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeoutOrNull
 
 /** Maximum time to wait for the sensor's first reading after registration. */
 const val DEFAULT_SENSOR_STARTUP_TIMEOUT_MILLIS: Long = 5_000L
@@ -33,12 +31,10 @@ const val DEFAULT_SENSOR_STARTUP_TIMEOUT_MILLIS: Long = 5_000L
 class DefaultAmbientLightService(
     private val sensorClient: AmbientLightSensorClient,
     private val useCase: AmbientLightUseCase,
-    private val startupTimeoutMillis: Long = DEFAULT_SENSOR_STARTUP_TIMEOUT_MILLIS,
+    startupTimeoutMillis: Long = DEFAULT_SENSOR_STARTUP_TIMEOUT_MILLIS,
 ) : AmbientLightService {
 
-    init {
-        require(startupTimeoutMillis > 0L) { "startupTimeoutMillis must be positive" }
-    }
+    private val startupGate = StartupAvailabilityGate(startupTimeoutMillis)
 
     private val initialAvailability =
         (sensorClient.availability as? SensorAvailability.Unavailable)
@@ -47,44 +43,39 @@ class DefaultAmbientLightService(
     private val mutableAvailability = MutableStateFlow<SensorAvailability>(initialAvailability)
     override val availability: StateFlow<SensorAvailability> = mutableAvailability.asStateFlow()
 
-    private val collectionMutex = Mutex()
-    private val activeJobLock = Any()
-    private var activeJob: Job? = null
+    private val sessions = CollectionSessionRegistry(mutableAvailability)
 
     override fun start(): Flow<LuxSample> = channelFlow {
-        collectionMutex.lock()
+        sessions.lockCollection()
         val sessionJob = checkNotNull(currentCoroutineContext()[Job])
-        synchronized(activeJobLock) { activeJob = sessionJob }
+        sessions.registerSession(sessionJob)
 
         try {
             val sensorAvailability = sensorClient.availability
             if (sensorAvailability is SensorAvailability.Unavailable) {
-                publishIfActive(sessionJob, sensorAvailability)
+                sessions.publishIfActive(sessionJob, sensorAvailability)
                 return@channelFlow
             }
             val profile = (sensorAvailability as SensorAvailability.Available).profile
-            publishIfActive(
+            sessions.publishIfActive(
                 sessionJob,
                 SensorAvailability.Unavailable(SensorUnavailableReason.NotUsable),
             )
 
-            val firstSample = CompletableDeferred<Unit>()
+            val watchdog = startupGate.newWatchdog()
             val sampleJob = launch(start = CoroutineStart.UNDISPATCHED) {
                 useCase.samples().collect { sample ->
-                    firstSample.complete(Unit)
-                    publishIfActive(sessionJob, SensorAvailability.Available(profile))
+                    watchdog.markFirstSample()
+                    sessions.publishIfActive(sessionJob, SensorAvailability.Available(profile))
                     send(sample)
                 }
             }
 
             try {
-                val receivedFirstSample = withTimeoutOrNull(startupTimeoutMillis) {
-                    firstSample.await()
-                    true
-                } ?: false
+                val receivedFirstSample = watchdog.awaitFirstSample()
 
                 if (!receivedFirstSample) {
-                    publishIfActive(
+                    sessions.publishIfActive(
                         sessionJob,
                         SensorAvailability.Unavailable(SensorUnavailableReason.NotUsable),
                     )
@@ -97,10 +88,8 @@ class DefaultAmbientLightService(
                 sampleJob.cancelAndJoin()
             }
         } finally {
-            synchronized(activeJobLock) {
-                if (activeJob === sessionJob) activeJob = null
-            }
-            collectionMutex.unlock()
+            sessions.releaseSession(sessionJob)
+            sessions.unlockCollection()
         }
     }
 
@@ -109,16 +98,10 @@ class DefaultAmbientLightService(
      * from its cancellation cleanup; the client contract makes that operation idempotent.
      */
     override fun stop() {
-        val jobToStop = synchronized(activeJobLock) { activeJob }
+        val jobToStop = sessions.cancelActiveSession()
         if (jobToStop != null) {
             sensorClient.unregister()
             jobToStop.cancel()
-        }
-    }
-
-    private fun publishIfActive(job: Job, value: SensorAvailability) {
-        synchronized(activeJobLock) {
-            if (activeJob === job && job.isActive) mutableAvailability.value = value
         }
     }
 }

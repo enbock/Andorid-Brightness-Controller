@@ -409,6 +409,12 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   five service tests cover missing sensor, first-reading/profile, timeout, valid zero lux and
   cancellation/stop); `:core:test :infrastructure:test :app:assembleDebug` → BUILD SUCCESSFUL.
   No acceptance-criteria or behavior deviations.*
+  *Appended note (architecture task T7): the two internal responsibilities of the service were
+  split into `:core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/AmbientLightService/Task/{CollectionSessionRegistry,StartupAvailabilityGate}.kt`
+  (`internal`, package `...AmbientLightService.Task`); `DefaultAmbientLightService` keeps its
+  constructor, `init` validation contract, `availability`, `start()` and `stop()` and only delegates
+  to them, so the `AmbientLightService/**` entry and the `DefaultAmbientLightServiceTest` file listed
+  above stay valid and the test stayed unmodified.*
 - [x] **T5 — Composition root and lifecycle wiring**: bind clients, use-case and service in
   `:app`, wire `start()`/`stop()` so `stop()` unregisters the listener idempotently and the
   screen-off gate is honoured. *Files: `:app/src/main/kotlin/com/ambientbrightness/app/**`.*

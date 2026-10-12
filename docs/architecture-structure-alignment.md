@@ -228,7 +228,7 @@ Every task below is therefore fully specified: do not re-open these decisions.
         `Request`/`Response` pair.
       - Verify: `AmbientLightUseCaseTest` green without modification.
 
-- [ ] **T7 — Break `DefaultAmbientLightService` into `Task/` classes (M)** — depends on: T3, T6
+- [x] **T7 — Break `DefaultAmbientLightService` into `Task/` classes (M)** — depends on: T3, T6
       - Move to `AmbientLightService/Task/`:
         - `CollectionSessionRegistry.kt` — owns `collectionMutex`, `activeJob`, `activeJobLock`,
           `publishIfActive`, `stop()`'s cancellation lookup.
@@ -556,4 +556,57 @@ partially finished run never leaves the docs describing a stale layout.
   `BUILD SUCCESSFUL in 4s` with `:core:compileKotlin`, `:core:compileTestKotlin` and `:core:test` all
   executed (81 / 0 / 0), so no incremental state hides a folder/package mismatch. Working tree clean
   afterwards, no untracked leftovers.
+
+### T7 — Break `DefaultAmbientLightService` into `Task/` classes
+
+- Done in one commit, `refactor(core): split DefaultAmbientLightService into Task collaborators` (the
+  SHA cannot appear in its own commit; the T10 sweep records it).
+- Two files added, both `internal`, package
+  `com.ambientbrightness.core.AmbientLightSensing.AmbientLightService.Task` (folder and package agree,
+  so the T2 `ArchitectureStructureTest` stays green):
+  - `core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/AmbientLightService/Task/CollectionSessionRegistry.kt`
+    — owns `collectionMutex` (as `lockCollection()`/`unlockCollection()`, kept explicit; the
+    `channelFlow` body is *not* wrapped in a `withLock` helper), `activeJobLock`, `activeJob`,
+    `registerSession`, `releaseSession`, `publishIfActive` (guarded by the availability
+    `MutableStateFlow` injected as `availabilitySink`) and `cancelActiveSession()` for `stop()`'s
+    cancellation lookup.
+  - `core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/AmbientLightService/Task/StartupAvailabilityGate.kt`
+    — owns the `require(startupTimeoutMillis > 0L) { "startupTimeoutMillis must be positive" }`
+    validation and, via `newWatchdog()`, the `CompletableDeferred`-based `FirstSampleWatchdog` with
+    `markFirstSample()` (idempotent `complete(Unit)`, called on every sample) and
+    `awaitFirstSample()` (`withTimeoutOrNull(startupTimeoutMillis) { firstSample.await(); true } ?: false`).
+    `FirstSampleWatchdog` lives in the same file, so only these two files were added.
+- `DefaultAmbientLightService` keeps its KDoc, its constructor (`sensorClient`, `useCase`,
+  `startupTimeoutMillis = DEFAULT_SENSOR_STARTUP_TIMEOUT_MILLIS` — now a plain parameter instead of a
+  `private val`, because the gate owns the value; the parameter name and default are unchanged, so
+  positional and named callers are unaffected), `availability` (`asStateFlow()` view), the
+  `initialAvailability` derivation and `start()`/`stop()`. It gained two service properties,
+  `startupGate = StartupAvailabilityGate(startupTimeoutMillis)` (declared first, where the `init`
+  block sat, so the `IllegalArgumentException` still fires during service construction and before
+  `initialAvailability` is derived) and `sessions = CollectionSessionRegistry(mutableAvailability)`,
+  and every former inline member is now a delegation: `lockCollection`/`unlockCollection`/`registerSession`
+  around the `try`, `publishIfActive` at the four publish sites, `releaseSession` + `unlockCollection`
+  in the outer `finally` in that exact order, `watchdog.markFirstSample()` in the collector and
+  `sessions.cancelActiveSession()` in `stop()`. Unchanged: `launch(start = CoroutineStart.UNDISPATCHED)`,
+  both `sampleJob.cancelAndJoin()` calls (inner `finally` and timeout branch) in place, the whole
+  `try`/`finally` nesting with the `return@channelFlow` statements, and `stop()`'s unregister-before-cancel
+  order that skips both calls when there is no active session. No reformatting, logic change or extra
+  abstraction; `OutlierClampingStabiliser`/`MinimumStepDeadBand` were left untouched (decision 4).
+- Docs corrected in the same commit: `docs/feature-ambient-light-sensing.md` — appended (history kept,
+  nothing rewritten) a T7 note after the T4 entry's `Files changed:`/test list, naming the two new
+  `AmbientLightService/Task/**` paths; the wildcard `AmbientLightSensing/AmbientLightService/**` entry of
+  T4 already covers them.
+- Verification (all green): `.\gradlew.bat --console=plain :core:test :infrastructure:test
+  :app:assembleDebug :infrastructure:compileDebugAndroidTestKotlin` → `BUILD SUCCESSFUL in 2s`;
+  `:core:test` **81 tests / 0 failures / 0 skipped** (16 classes, including the T2 guard),
+  `:infrastructure:test` **26 tests / 0 failures / 0 skipped** (6 classes), `app-debug.apk` produced.
+  Focused run `.\gradlew.bat --console=plain :core:test --tests "*AmbientLightService*"
+  --tests "*DefaultAmbientLightServiceTest*" --rerun-tasks` → `BUILD SUCCESSFUL in 3s`, 9 tests /
+  0 failures: `DefaultAmbientLightServiceTest` 5/0 (no sensor, first-reading/profile, silent-sensor
+  timeout, zero lux, cancellation/stop) plus `AmbientLightServiceContractTest` 4/0. Cache-busting run
+  `.\gradlew.bat --console=plain --no-build-cache :core:clean :core:test` → `BUILD SUCCESSFUL in 4s`
+  with `:core:compileKotlin`, `:core:compileTestKotlin` and `:core:test` all executed (81 / 0 / 0), so
+  no incremental state hides a folder/package mismatch. `git status --short` lists only the modified
+  service plus the new `Task/` directory and the two docs — no path under `core/src/test/**`, so both
+  service tests are green unmodified.
 
