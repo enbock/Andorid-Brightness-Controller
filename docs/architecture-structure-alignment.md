@@ -333,7 +333,7 @@ partially finished run never leaves the docs describing a stale layout.
 
 ### T3 — Create the `AmbientLightSensing` responsibility in `:core`
 
-- Done in commit (this commit); this includes the
+- Done in commit `ed38782`; this includes the
   `BrightnessMappingCurve`/`HysteresisGate` part that was pulled forward from T5 by the blocker fix.
 - Moved with `git mv`; every moved file declares the package of its new folder, and the emptied old
   directories were deleted: `AmbientLightSensing/{LuxSample,SensorProfile,SensorAvailability,
