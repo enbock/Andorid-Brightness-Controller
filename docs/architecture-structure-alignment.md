@@ -139,7 +139,7 @@ Every task below is therefore fully specified: do not re-open these decisions.
         *Open questions — all resolved*); do not re-open them.
       - Verify: baseline commands exit 0; SHA recorded.
 
-- [ ] **T2 — Folder/package guard test for `:core` (S)** — depends on: T4
+- [x] **T2 — Folder/package guard test for `:core` (S)** — depends on: T4
       - Add `core/src/test/kotlin/com/ambientbrightness/core/ArchitectureStructureTest.kt`: walk
         `File("src/main/kotlin")` (Gradle's default test working directory is the module directory),
         for every `*.kt` read the `package` line, derive the expected package from the directory path
@@ -419,3 +419,53 @@ partially finished run never leaves the docs describing a stale layout.
   executed (no cache hit), so no incremental state hides a package/classifier error.
 - No other deviation; the refactor is move/rename/package/import only — no signature, logic or
   formatting change.
+
+### T2 — Folder/package guard test for `:core`
+
+- Added `core/src/test/kotlin/com/ambientbrightness/core/ArchitectureStructureTest.kt`, package
+  `com.ambientbrightness.core`, so the guard's own folder/package pair satisfies the rule it checks.
+  Test-only change: no production file, no other file touched, no build/config change, no new
+  dependency, no fixture.
+- One `@Test` collects all violations of both rules and asserts once, so a single run reports **every**
+  offender instead of the first. The class name is
+  `ArchitectureStructureTest` with the test
+  `every source file lives in the folder its package names and imports no Android type`:
+  1. **Directory ↔ package consistency.** Walks `File("src/main/kotlin")` (JUnit's working directory is
+     the module directory `core/`) over all `*.kt` files, reads each with `Charsets.UTF_8`, skips
+     leading blank lines and `//` / `/* … */` / KDoc comments, takes the first `package` declaration
+     and compares it with the package derived from the file's own folder relative to
+     `src/main/kotlin/com/ambientbrightness/`. A file inside that subtree without a `package` line and
+     a file outside the subtree are violations too. Every message names the offending path plus both
+     package strings. `assertTrue(sourceRoot.isDirectory, …)` (message names the working directory)
+     makes a wrong working directory fail instead of passing vacuously.
+  2. **Layer purity.** Import lines only, via `Regex("^import\s+android\.")` over the same
+     comment-aware line scan — no whole-file `contains("android.")`, so prose and commented-out imports
+     cannot fire it.
+- Verification (positive): `.\gradlew.bat --console=plain :core:test :infrastructure:test
+  :app:assembleDebug` → `BUILD SUCCESSFUL`; `:core:test` **81 tests / 0 failures / 0 skipped**
+  (16 classes = 15 baseline + the guard; 80 baseline tests + 1 guard), `:infrastructure:test`
+  **26 tests / 0 failures / 0 skipped** (6 classes), `app-debug.apk` produced. An executed, uncached
+  run `.\gradlew.bat --console=plain --no-build-cache :core:clean :core:test` ran
+  `:core:compileKotlin`, `:core:compileTestKotlin` and `:core:test` and reported the same 81/0/0.
+- The guard is not accidentally skipped: `.\gradlew.bat --console=plain :core:test --tests
+  "com.ambientbrightness.core.ArchitectureStructureTest"` executes exactly that class
+  (1 test, 0 failures, 0.084 s), and the per-class report
+  `core/build/test-results/test/TEST-com.ambientbrightness.core.ArchitectureStructureTest.xml`
+  is written on every run.
+- Negative check: a temporary `core/src/main/kotlin/com/ambientbrightness/core/GuardScratch.kt` with
+  `package com.ambientbrightness.core.wrong` (plus `GuardScratchNoPackage.kt` without any `package`
+  line) made `:core:test` fail — `81 tests completed, 1 failed` — with
+  `src/main/kotlin/com/ambientbrightness/core/GuardScratch.kt declares package
+  'com.ambientbrightness.core.wrong' but its folder requires 'com.ambientbrightness.core'` and
+  `src/main/kotlin/com/ambientbrightness/core/GuardScratchNoPackage.kt has no package declaration; its
+  folder requires 'com.ambientbrightness.core'` in the **same** assertion. Both scratch files were
+  deleted, `:core:test` is green again (81/0/0) and `git status --short` is clean. A third scratch file
+  whose *comments* carried a wrong `package` line and an `import android.os.Bundle` line kept the guard
+  green, proving the comment-aware scan does not false-positive on prose.
+- The guard reported **no violation** on the T3/T4 layout and no `android.` import exists anywhere in
+  `core/src/main/**`, so nothing had to be excluded, weakened or marked `@Disabled`; the rule is green
+  the moment it is added.
+- Docs: no feature-doc path change in this task — the guard adds no production file, so it invalidates
+  no documented `:core` path. The T2 checklist entry already names the one added file, so it needed no
+  file list addition.
+
