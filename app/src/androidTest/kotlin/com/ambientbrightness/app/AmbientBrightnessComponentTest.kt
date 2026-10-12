@@ -7,6 +7,8 @@ import com.ambientbrightness.core.AmbientLightSensing.LuxSample
 import com.ambientbrightness.core.AmbientLightSensing.ScreenStateClient
 import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
 import com.ambientbrightness.core.AmbientLightSensing.SensorProfile
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessStatus
+import com.ambientbrightness.core.AutomaticBrightnessControl.BuiltInAdaptiveBrightnessState
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,8 +31,8 @@ class AmbientBrightnessComponentTest {
     @Test
     fun stopUnregistersSensorAndPreventsFurtherSamples() = runBlocking {
         val sensor = ControllableAmbientLightSensorClient()
-        val component = AmbientBrightnessComponent(sensor, MutableScreenStateClient(true))
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        val component = AmbientBrightnessComponent(sensor, MutableScreenStateClient(true), scope)
         val receivedSamples = CopyOnWriteArrayList<LuxSample>()
         val collection = component.collector.collect(
             scope = scope,
@@ -62,8 +64,8 @@ class AmbientBrightnessComponentTest {
     fun screenOffSuppressesSamplesAndScreenOnRestartsCollection() = runBlocking {
         val sensor = ControllableAmbientLightSensorClient()
         val screenState = MutableScreenStateClient(true)
-        val component = AmbientBrightnessComponent(sensor, screenState)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        val component = AmbientBrightnessComponent(sensor, screenState, scope)
         val receivedSamples = CopyOnWriteArrayList<LuxSample>()
         val collection = component.collector.collect(
             scope = scope,
@@ -91,6 +93,37 @@ class AmbientBrightnessComponentTest {
             assertTrue("collection resumes when screen turns on", receivedSamples.size > previousCount)
         } finally {
             component.stop()
+            collection.cancel()
+            scope.cancel()
+        }
+    }
+
+    /** Starts the controller through the composition root and confirms the collector forwards both streams. */
+    @Test
+    fun controllerStatusAndAdaptiveBrightnessConflictAreCollectable() = runBlocking {
+        val sensor = ControllableAmbientLightSensorClient()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+        val component = AmbientBrightnessComponent(sensor, MutableScreenStateClient(true), scope)
+        val statuses = CopyOnWriteArrayList<BrightnessStatus>()
+        val conflicts = CopyOnWriteArrayList<BuiltInAdaptiveBrightnessState>()
+        val collection = component.statusCollector.collect(
+            scope = scope,
+            onStatus = { statuses += it },
+            onAdaptiveBrightnessConflict = { conflicts += it },
+        )
+
+        try {
+            component.controller.start()
+            withTimeout(TEST_TIMEOUT_MILLIS) {
+                while (statuses.none { it.isRunning }) {
+                    delay(20L)
+                }
+            }
+
+            assertTrue("the running status is forwarded", statuses.any { it.isRunning })
+            assertTrue("the built-in mode is forwarded", conflicts.isNotEmpty())
+        } finally {
+            component.controller.stop()
             collection.cancel()
             scope.cancel()
         }

@@ -3,6 +3,8 @@ package com.ambientbrightness.infrastructure
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRange
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessWriteResult
+import com.ambientbrightness.core.AutomaticBrightnessControl.BuiltInAdaptiveBrightnessState
+import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.BuiltInAdaptiveBrightnessClient.Dummy.DummyBuiltInAdaptiveBrightnessClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Dummy.DummyDeviceBrightnessRangeClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.SystemBrightnessClient.Dummy.DummySystemBrightnessClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.WriteSettingsPermissionChecker.Dummy.DummyWriteSettingsPermissionChecker
@@ -73,5 +75,15 @@ class DummyBrightnessAdaptersTest {
 
         client.setPermissionGranted(true)
         assertTrue(client.hasWriteSettingsPermission.value)
+    }
+
+    @Test
+    fun `dummy adaptive brightness client exposes and updates the reported mode`() {
+        val client = DummyBuiltInAdaptiveBrightnessClient()
+
+        assertEquals(BuiltInAdaptiveBrightnessState.UNKNOWN, client.readState())
+
+        client.setState(BuiltInAdaptiveBrightnessState.ENABLED)
+        assertEquals(BuiltInAdaptiveBrightnessState.ENABLED, client.readState())
     }
 }

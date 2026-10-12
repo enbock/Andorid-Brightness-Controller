@@ -49,4 +49,15 @@ class MinimumStepDeadBandTest {
         assertEquals(BrightnessValue(10), deadBand.lastApplied)
         assertNull(deadBand.suppressionFor(BrightnessValue(13)))
     }
+
+    @Test
+    fun `reset forgets the remembered value for a new controller run`() {
+        val deadBand = MinimumStepDeadBand()
+        deadBand.recordApplied(BrightnessValue(10))
+
+        deadBand.reset()
+
+        assertNull(deadBand.lastApplied)
+        assertNull(deadBand.suppressionFor(BrightnessValue(10)))
+    }
 }

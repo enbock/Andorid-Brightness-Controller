@@ -7,6 +7,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessWriteResult
+import com.ambientbrightness.core.AutomaticBrightnessControl.BuiltInAdaptiveBrightnessState
+import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.BuiltInAdaptiveBrightnessClient.Android.AndroidBuiltInAdaptiveBrightnessClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Android.AndroidDeviceBrightnessRangeClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.SystemBrightnessClient.Android.AndroidSystemBrightnessClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.WriteSettingsPermissionChecker.Android.AndroidWriteSettingsPermissionChecker
@@ -116,8 +118,63 @@ class AndroidBrightnessAdaptersTest {
         }
     }
 
-    private fun setWriteSettingsAppOpMode(mode: String) {
-        val instrumentation = InstrumentationRegistry.getInstrumentation()
+    @Test
+    fun builtInAdaptiveBrightnessModeFollowsTheSystemSetting() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        assumeTrue(
+            "Grant WRITE_SETTINGS to com.ambientbrightness.app with adb appops before this test.",
+            Settings.System.canWrite(context),
+        )
+
+        val client = AndroidBuiltInAdaptiveBrightnessClient(context)
+        val resolver = context.contentResolver
+        val originalMode = Settings.System.getInt(
+            resolver,
+            Settings.System.SCREEN_BRIGHTNESS_MODE,
+            Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL,
+        )
+        assertEquals(expectedAdaptiveBrightnessState(originalMode), client.readState())
+
+        try {
+            assertTrue(
+                Settings.System.putInt(
+                    resolver,
+                    Settings.System.SCREEN_BRIGHTNESS_MODE,
+                    Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC,
+                ),
+            )
+            assertEquals(BuiltInAdaptiveBrightnessState.ENABLED, client.readState())
+
+            assertTrue(
+                Settings.System.putInt(
+                    resolver,
+                    Settings.System.SCREEN_BRIGHTNESS_MODE,
+                    Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL,
+                ),
+            )
+            assertEquals(BuiltInAdaptiveBrightnessState.DISABLED, client.readState())
+        } finally {
+            Settings.System.putInt(
+                resolver,
+                Settings.System.SCREEN_BRIGHTNESS_MODE,
+                originalMode,
+            )
+            assertEquals(expectedAdaptiveBrightnessState(originalMode), client.readState())
+        }
+    }
+
+    private fun expectedAdaptiveBrightnessState(mode: Int): BuiltInAdaptiveBrightnessState =
+        when (mode) {
+            Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC ->
+                BuiltInAdaptiveBrightnessState.ENABLED
+
+            Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL ->
+                BuiltInAdaptiveBrightnessState.DISABLED
+
+            else -> BuiltInAdaptiveBrightnessState.UNKNOWN
+        }
+
+    private fun setWriteSettingsAppOpMode(mode: String) {        val instrumentation = InstrumentationRegistry.getInstrumentation()
         val descriptor = instrumentation.uiAutomation.executeShellCommand(
             "appops set com.ambientbrightness.app WRITE_SETTINGS $mode",
         )

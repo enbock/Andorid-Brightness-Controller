@@ -40,6 +40,11 @@ class MinimumStepDeadBand(
         lastApplied = value
     }
 
+    /** Forgets the remembered value, so a new controller run compares against a fresh baseline. */
+    fun reset() {
+        lastApplied = null
+    }
+
     companion object {
         const val DEFAULT_MINIMUM_STEP: Int = 1
     }

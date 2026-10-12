@@ -9,4 +9,10 @@ interface AutomaticBrightnessController {
 
     val status: StateFlow<BrightnessStatus>
     val adaptiveBrightnessConflict: StateFlow<BuiltInAdaptiveBrightnessState>
+
+    /**
+     * Brightness that was in effect when the controller last started, or null when it could not be
+     * read. Exposed for the restore-on-stop behavior (D3); the controller itself never restores.
+     */
+    val snapshot: BrightnessSnapshot?
 }
