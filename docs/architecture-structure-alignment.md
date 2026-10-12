@@ -97,6 +97,7 @@ directions (`Application → Core`, `Infrastructure → Core`, composition root 
 | Instrumented tests need a device/emulator | Low — `:app` and `:infrastructure` androidTest cannot run in every environment | Structural verification via `:core:test`, `:infrastructure:test`, `:app:assembleDebug`; run `connectedDebugAndroidTest` where an API 36 emulator is available (it was, per F1 T1/T5) |
 | Docs drift | Medium — 6 feature docs and the EPIC reference explicit source paths | Every moving task corrects the paths it invalidates in the same commit; T10 re-greps every documented path (must exist on disk) |
 | Silent behaviour change during `Task/` extraction | Medium — `DefaultAmbientLightService` contains concurrency bookkeeping | Extraction without logic edits; `DefaultAmbientLightServiceTest` + `AmbientLightServiceContractTest` must stay green unmodified |
+| A package name equals the fully-qualified name of a classifier declared in its parent package | High — `:core:compileKotlin` aborts with `Package conflicts with classifier …`; the condition existed since F2 but stayed masked by incremental compilation and surfaced at the first full re-analysis | Merge interface + default implementation into one folder **in the same commit that first introduces the responsibility level** (folded into T3 for `BrightnessMappingCurve`/`HysteresisGate`); never leave a same-named interface in the layer root |
 
 ### Open questions — all resolved before implementation (binding)
 
@@ -156,6 +157,21 @@ Every task below is therefore fully specified: do not re-open these decisions.
         `LuxSample.kt`, `SensorProfile.kt`, `SensorAvailability.kt`, `SensorUnavailableReason.kt`,
         `AmbientLightSensorClient.kt`, `ScreenStateClient.kt` directly under `AmbientLightSensing/`.
       - Move `Clock/Clock.kt` to `core/.../core/Shared/Clock.kt` (decision 1 in *Open questions*).
+      - **Blocker fix — must be part of this commit, otherwise `:core:compileKotlin` fails:**
+        move the two interface files out of the layer root into their existing folders. A package must
+        never share its fully-qualified name with a classifier declared in its *parent* package:
+        `com.ambientbrightness.core.BrightnessMappingCurve` (package, declared by
+        `BrightnessMappingCurve/DefaultBrightnessMappingCurve.kt`) collided with the
+        `BrightnessMappingCurve` interface that still sat in `com.ambientbrightness.core`, and the same
+        holds for `HysteresisGate`. The compiler aborts with
+        `error: Package conflicts with classifier com.ambientbrightness.core.BrightnessMappingCurve`.
+        → `core/.../core/BrightnessMappingCurve.kt` moves to
+        `core/.../core/BrightnessMappingCurve/BrightnessMappingCurve.kt` and
+        `core/.../core/HysteresisGate.kt` to `core/.../core/HysteresisGate/HysteresisGate.kt`, each with
+        the package of its new folder (`com.ambientbrightness.core.BrightnessMappingCurve` resp.
+        `com.ambientbrightness.core.HysteresisGate`, see the same-shaped `AmbientLightService/`).
+        This pulls the `BrightnessMappingCurve`/`HysteresisGate` part of T5 forward into T3; update every
+        import of the two interfaces (`core/src/test/**`, `infrastructure/**`, `app/**`).
       - Set every moved file's `package` to `com.ambientbrightness.core.AmbientLightSensing[.<TypeFolder>]`
         resp. `com.ambientbrightness.core.Shared` and rewrite imports in `core/src/test/**`,
         `infrastructure/**`, `app/**`.
@@ -163,8 +179,11 @@ Every task below is therefore fully specified: do not re-open these decisions.
         (including the `{LuxSample,SensorProfile,…}` list and the `Clock/Clock` file list) and in
         `docs/feature-automatic-brightness-control.md` / `docs/feature-response-tuning.md` where
         `Clock` is referenced by path.
-      - Verify: `:core:test` green; `:infrastructure:compileDebugKotlin` and `:app:compileDebugKotlin`
-        green; guard test (T2) green; no stale path left by `rg 'core/Clock|core/LuxSample|core/SensorProfile|core/LightLevel|core/ReadingStabiliser|core/AmbientLight' docs`.
+      - Verify: `.\gradlew.bat :core:test :infrastructure:test :app:assembleDebug` exits 0; no stale
+        path left by
+        `rg 'core/Clock|core/LuxSample|core/SensorProfile|core/LightLevel|core/ReadingStabiliser|core/AmbientLight|core/BrightnessMappingCurve.kt|core/HysteresisGate.kt' docs`
+        and no `import com.ambientbrightness.core.BrightnessMappingCurve` /
+        `...core.HysteresisGate` left in any source file.
 
 - [ ] **T4 — Create the `AutomaticBrightnessControl` responsibility in `:core` (M)** — depends on: T3
       - Move the brightness contract types and the already-foldered services:
@@ -175,6 +194,8 @@ Every task below is therefore fully specified: do not re-open these decisions.
         `WriteSettingsPermissionChecker.kt`, plus the folders `BrightnessMappingCurve/`,
         `HysteresisGate/`, `BrightnessRangeResolver/`, `BrightnessRangeScaler/`,
         `MinimumStepDeadBand/` under `core/.../core/AutomaticBrightnessControl/`.
+      - `BrightnessMappingCurve/` and `HysteresisGate/` already contain their interface after T3 (blocker
+        fix); this task only renames their packages, no further file moves inside them.
       - Apply `package com.ambientbrightness.core.AutomaticBrightnessControl[.<TypeFolder>]` and
         rewrite imports in `:infrastructure`, `:app` and the core/infrastructure tests
         (`AndroidDeviceBrightnessRangeClientTest`, `AndroidSystemBrightnessClientTest`,
@@ -183,19 +204,20 @@ Every task below is therefore fully specified: do not re-open these decisions.
         `docs/feature-background-service.md`, `docs/feature-manual-brightness-offset.md`,
         `docs/feature-status-dashboard.md` and `docs/EPIC-ambient-brightness-controller.md` wherever a
         moved type is referenced by path or by `core/.../` example.
-      - Verify: `:core:test` and `:infrastructure:test` green; guard test green; no stale
+      - Verify: `:core:test` and `:infrastructure:test` green; `:app:assembleDebug` green; no stale
         `com.ambientbrightness.core.Brightness*` import path in the moved sources.
 
 - [ ] **T5 — Merge interface and default implementation folders (S)** — depends on: T3, T4
-      - `BrightnessMappingCurve/{BrightnessMappingCurve,DefaultBrightnessMappingCurve}.kt` (drop the
-        stray root-level `BrightnessMappingCurve.kt`).
-      - `HysteresisGate/{HysteresisGate,DefaultHysteresisGate}.kt`.
+      - The `BrightnessMappingCurve` and `HysteresisGate` merges are **already part of T3** (blocker
+        fix, see T3) because the folder-consistent package name collided with the interfaces that
+        still lived in the layer root. Only one merge is left here:
       - `ReadingStabiliser/{ReadingStabiliser,OutlierClampingStabiliser}.kt` (remove the separate
-        `OutlierClampingStabiliser/` folder).
+        `OutlierClampingStabiliser/` folder; the class name stays `OutlierClampingStabiliser`, it only
+        takes over `ReadingStabiliser`'s package).
       - Update the affected paths in `docs/feature-automatic-brightness-control.md`
-        (`BrightnessMappingCurve/`, `HysteresisGate/`, `ReadingStabiliser/`).
+        (`ReadingStabiliser/`, `OutlierClampingStabiliser/`).
       - Verify: no file remains in a folder whose name differs from the type it defines; `:core:test`
-        green.
+        green; no package name in `:core` equals the fully-qualified name of a classifier.
 
 - [ ] **T6 — Give the use case its folder-local collaborators (S)** — depends on: T3
       - Extract the private `LatestReading` class out of `AmbientLightUseCase.kt` into
@@ -308,3 +330,28 @@ partially finished run never leaves the docs describing a stale layout.
   (15 test classes); `:infrastructure:test` **26 tests / 0 failures / 0 skipped** (6 test classes);
   `:app:assembleDebug` green (`app-debug.apk` produced).
 - No source change in this task; only this note was added.
+
+### T3 — in progress (blocked, resumed)
+
+State when the first implementation run stopped — nothing was lost, the work is **staged in the index**:
+
+- Staged: the `AmbientLightSensing/**` moves plus `core/.../core/Shared/Clock.kt`, the package rewrites
+  in `core/src/test/**`, and the resulting import fixes in `infrastructure/**` and `app/**`.
+- Not done yet: the blocker fix below, the verification run and the T3 commit.
+
+Blocker and diagnosis (now fixed in the plan — see T3 and the risk table):
+
+```
+e: .../core/BrightnessMappingCurve/DefaultBrightnessMappingCurve.kt:1:9 Package conflicts with classifier com.ambientbrightness.core.BrightnessMappingCurve
+e: .../core/HysteresisGate/DefaultHysteresisGate.kt:1:9 Package conflicts with classifier com.ambientbrightness.core.HysteresisGate
+```
+
+The interfaces `BrightnessMappingCurve` and `HysteresisGate` still declared
+`package com.ambientbrightness.core`, so the sub-packages of the same name collided with them. The
+condition dates back to the F2 commits and stayed masked by incremental compilation; the T3 moves forced
+a full module re-analysis and surfaced it. `:core:compileKotlin` fails for this reason alone — no T3
+change is at fault. Resolution: the `BrightnessMappingCurve`/`HysteresisGate` merges move from T5 into T3.
+
+Lesson for the remaining tasks (especially T8/T9): the compiler analyses the whole module, so a
+partially migrated package layout aborts the build even when the files of the current task are
+consistent. Every task must end in a state where no package name equals a classifier name.
