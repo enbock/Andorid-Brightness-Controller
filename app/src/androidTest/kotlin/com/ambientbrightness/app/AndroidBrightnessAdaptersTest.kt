@@ -1,4 +1,4 @@
-package com.ambientbrightness.infrastructure
+package com.ambientbrightness.app
 
 import android.content.res.Resources
 import android.os.ParcelFileDescriptor

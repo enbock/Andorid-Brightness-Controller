@@ -418,8 +418,7 @@ commit `6b3e978`.*
   `infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/AndroidSystemBrightnessClientTest.kt`,
   `infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/AndroidDeviceBrightnessRangeClientTest.kt`,
   `infrastructure/src/test/kotlin/com/ambientbrightness/infrastructure/DummyBrightnessAdaptersTest.kt`,
-  `infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/AndroidBrightnessAdaptersTest.kt`
-  (moved by T9),
+  `app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt`,
   and `app/src/main/AndroidManifest.xml`.
 - Focused tests: infra JVM 26/26 passed (including dummy behavior, typed writer failure conversion,
   and range validity); core JVM 80/80 passed. Required builds passed:
@@ -427,8 +426,7 @@ commit `6b3e978`.*
   and `:core:test :infrastructure:test :app:assembleDebug` (all with `--no-daemon`).
 - Emulator: API 36 `medium_phone` (`emulator-5554`). `:infrastructure:connectedDebugAndroidTest`
   passed 1/1 (`AndroidAmbientLightSensorClientTest.lightEventReachesCallback`).
-  The actual brightness tests are in
-  `infrastructure/src/androidTest/.../AndroidBrightnessAdaptersTest.kt` (moved by T9)
+  The actual brightness tests are in `app/src/androidTest/.../AndroidBrightnessAdaptersTest.kt`
   because the infrastructure library instrumentation target is
   `com.ambientbrightness.infrastructure.test`, not the required app package. After
   `adb shell appops set com.ambientbrightness.app WRITE_SETTINGS allow`,
@@ -437,6 +435,9 @@ commit `6b3e978`.*
   `systemWriteReadsBackAndRestoresBrightness`, and
   `permissionStateStartsWithTheLiveGrantAndObservationCanStop` (the latter toggled AppOps
   `ignore`/`allow` and observed both flow updates). The discovered maximum was 255.
+  These brightness tests must stay in `:app`: the `:infrastructure` library manifest declares no
+  `WRITE_SETTINGS` and the adb `appops` grant is bound to the app package, so relocating them into the
+  library androidTest would make them skip (`assumeTrue`) or fail on a device, with no compile-time signal.
 - The write/read-back test saved brightness `102`, wrote a nearby distinct value, read it back and
   restored `102` in `finally`; the outer adb cleanup also restored system brightness to `102`,
   reset `WRITE_SETTINGS` to `default` while the app was installed, verified that state, and removed
