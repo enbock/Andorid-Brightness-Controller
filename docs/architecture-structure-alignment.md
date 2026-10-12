@@ -131,7 +131,7 @@ Every task below is therefore fully specified: do not re-open these decisions.
 
 ## Task Breakdown
 
-- [ ] **T1 — Freeze the verified baseline (S)** — depends on: none
+- [x] **T1 — Freeze the verified baseline (S)** — depends on: none
       - Run `./gradlew :core:test :infrastructure:test :app:assembleDebug` and record the green
         baseline commit SHA and the test counts in this file.
       - The target tree and all design decisions are already fixed (see `## Design` and
@@ -293,3 +293,18 @@ Every task below is therefore fully specified: do not re-open these decisions.
 Note on documentation: the technical docs are corrected inside the task that invalidates a path
 (T3–T9 each carry a doc bullet) and not deferred to T10; T10 is only the exhaustive cross-check, so a
 partially finished run never leaves the docs describing a stale layout.
+
+---
+
+## Implementation Notes
+
+### T1 — Verified baseline
+
+- Baseline commit (rollback anchor, unchanged by this task): `678a4ac`
+  (`docs(architecture): plan clean-architecture structure alignment (T1-T10)`), branch `main`.
+- Verification command: `.\gradlew.bat :core:test :infrastructure:test :app:assembleDebug --console=plain`
+  → `BUILD SUCCESSFUL in 17s` (exit 0, 63 actionable tasks).
+- Observed test counts at the baseline: `:core:test` **80 tests / 0 failures / 0 skipped**
+  (15 test classes); `:infrastructure:test` **26 tests / 0 failures / 0 skipped** (6 test classes);
+  `:app:assembleDebug` green (`app-debug.apk` produced).
+- No source change in this task; only this note was added.
