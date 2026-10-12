@@ -27,7 +27,10 @@ dependencies {
     // StateFlow appears in the public ScreenStateClient API, so it must be exposed transitively.
     api(libs.kotlinx.coroutines.core)
 
+    implementation(libs.androidx.datastore.preferences)
+
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.runner)

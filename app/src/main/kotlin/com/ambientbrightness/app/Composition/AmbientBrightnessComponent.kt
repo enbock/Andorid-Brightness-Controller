@@ -14,7 +14,9 @@ import com.ambientbrightness.core.AutomaticBrightnessControl.BuiltInAdaptiveBrig
 import com.ambientbrightness.core.AutomaticBrightnessControl.DeviceBrightnessRangeClient
 import com.ambientbrightness.core.AutomaticBrightnessControl.SystemBrightnessClient
 import com.ambientbrightness.core.AutomaticBrightnessControl.WriteSettingsPermissionChecker
+import com.ambientbrightness.core.SettingsStore.SettingsStore
 import com.ambientbrightness.core.Shared.SystemClock
+import com.ambientbrightness.infrastructure.SettingsStore.SettingsStore.InMemory.InMemorySettingsStore
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.BuiltInAdaptiveBrightnessClient.Dummy.DummyBuiltInAdaptiveBrightnessClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Dummy.DummyDeviceBrightnessRangeClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.SystemBrightnessClient.Dummy.DummySystemBrightnessClient
@@ -25,7 +27,8 @@ import kotlinx.coroutines.CoroutineScope
  * App-scoped manual composition root for ambient sensing and automatic brightness control. Its
  * client parameters also let tests exercise the same controller boundaries with deterministic
  * clients instead of device sensors and settings. The brightness clients default to the
- * deterministic Dummy adapters so the app stays runnable without a device.
+ * deterministic Dummy adapters, and [settingsStore] to the in-memory store, so the app stays
+ * runnable without a device; the Application passes the persistent DataStore-backed store instead.
  */
 class AmbientBrightnessComponent(
     sensorClient: AmbientLightSensorClient,
@@ -37,6 +40,7 @@ class AmbientBrightnessComponent(
         DummyWriteSettingsPermissionChecker(),
     builtInAdaptiveBrightnessClient: BuiltInAdaptiveBrightnessClient =
         DummyBuiltInAdaptiveBrightnessClient(),
+    val settingsStore: SettingsStore = InMemorySettingsStore(),
 ) {
 
     private val sensorRangeLux = (sensorClient.availability as? SensorAvailability.Available)

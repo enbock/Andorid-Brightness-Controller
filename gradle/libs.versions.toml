@@ -7,6 +7,7 @@ androidxCore = "1.18.0"
 androidxActivity = "1.13.0"
 androidxLifecycle = "2.10.0"
 androidxComposeBom = "2026.03.01"
+androidxDatastore = "1.2.1"
 junitJupiter = "5.12.2"
 junit4 = "4.13.2"
 kotlinxCoroutines = "1.10.2"
@@ -21,6 +22,7 @@ androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = 
 androidx-compose-ui = { module = "androidx.compose.ui:ui" }
 androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "androidxDatastore" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junitJupiter" }
 junit = { module = "junit:junit", version.ref = "junit4" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }

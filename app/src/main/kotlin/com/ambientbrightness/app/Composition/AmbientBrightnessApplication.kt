@@ -10,6 +10,7 @@ import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.BuiltInAd
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Android.AndroidDeviceBrightnessRangeClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.SystemBrightnessClient.Android.AndroidSystemBrightnessClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.WriteSettingsPermissionChecker.Android.AndroidWriteSettingsPermissionChecker
+import com.ambientbrightness.infrastructure.SettingsStore.SettingsStore.Android.AndroidDataStoreSettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,6 +41,7 @@ class AmbientBrightnessApplication : Application() {
             deviceRangeClient = AndroidDeviceBrightnessRangeClient(),
             writeSettingsPermissionChecker = AndroidWriteSettingsPermissionChecker(this, appScope),
             builtInAdaptiveBrightnessClient = AndroidBuiltInAdaptiveBrightnessClient(this),
+            settingsStore = AndroidDataStoreSettingsStore.create(context = this, scope = appScope),
         )
     }
 }
