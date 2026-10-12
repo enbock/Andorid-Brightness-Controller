@@ -1,5 +1,6 @@
 package com.ambientbrightness.core.BrightnessMappingCurve
 
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessMappingCurve.DefaultBrightnessMappingCurve
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test

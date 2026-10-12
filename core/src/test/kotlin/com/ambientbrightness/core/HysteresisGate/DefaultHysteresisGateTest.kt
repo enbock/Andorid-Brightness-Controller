@@ -1,5 +1,6 @@
 package com.ambientbrightness.core.HysteresisGate
 
+import com.ambientbrightness.core.AutomaticBrightnessControl.HysteresisGate.DefaultHysteresisGate
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test

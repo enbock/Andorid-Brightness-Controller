@@ -1,7 +1,7 @@
 package com.ambientbrightness.infrastructure
 
-import com.ambientbrightness.core.BrightnessRange
-import com.ambientbrightness.core.DeviceBrightnessRangeClient
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRange
+import com.ambientbrightness.core.AutomaticBrightnessControl.DeviceBrightnessRangeClient
 
 /** Deterministic in-memory device-range client for tests and development. */
 class DummyDeviceBrightnessRangeClient(

@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AutomaticBrightnessControl
 
 /**
  * A device brightness value. Values below [MINIMUM] are not valid brightness values.

@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AutomaticBrightnessControl
 
 /** Discovers the supported device brightness interval independently of system brightness I/O. */
 interface DeviceBrightnessRangeClient {

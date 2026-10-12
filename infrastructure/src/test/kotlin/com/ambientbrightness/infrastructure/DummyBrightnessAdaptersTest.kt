@@ -1,8 +1,8 @@
 package com.ambientbrightness.infrastructure
 
-import com.ambientbrightness.core.BrightnessRange
-import com.ambientbrightness.core.BrightnessValue
-import com.ambientbrightness.core.BrightnessWriteResult
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRange
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessWriteResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

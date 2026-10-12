@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AutomaticBrightnessControl
 
 /** Reads and writes the system screen-brightness setting without exposing platform APIs to core. */
 interface SystemBrightnessClient {

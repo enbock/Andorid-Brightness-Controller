@@ -1,8 +1,8 @@
 package com.ambientbrightness.infrastructure
 
-import com.ambientbrightness.core.BrightnessValue
-import com.ambientbrightness.core.BrightnessWriteResult
-import com.ambientbrightness.core.SystemBrightnessClient
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessWriteResult
+import com.ambientbrightness.core.AutomaticBrightnessControl.SystemBrightnessClient
 
 /** Deterministic in-memory system-brightness client for tests and development. */
 class DummySystemBrightnessClient(

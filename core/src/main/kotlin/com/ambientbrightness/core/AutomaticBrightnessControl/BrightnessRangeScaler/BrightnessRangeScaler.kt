@@ -1,7 +1,7 @@
-package com.ambientbrightness.core.BrightnessRangeScaler
+package com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRangeScaler
 
-import com.ambientbrightness.core.BrightnessRange
-import com.ambientbrightness.core.BrightnessValue
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRange
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
 import kotlin.math.roundToInt
 
 /** Scales a normalized brightness fraction into the inclusive device range. */

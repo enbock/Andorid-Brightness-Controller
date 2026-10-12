@@ -1,4 +1,4 @@
-package com.ambientbrightness.core.HysteresisGate
+package com.ambientbrightness.core.AutomaticBrightnessControl.HysteresisGate
 
 /** Boundary for filtering small lux oscillations around mapping-curve transitions. */
 interface HysteresisGate {

@@ -1,4 +1,4 @@
-package com.ambientbrightness.core.BrightnessMappingCurve
+package com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessMappingCurve
 
 /** Maps ambient illuminance in lux to a normalized brightness fraction in the range [0, 1]. */
 interface BrightnessMappingCurve {

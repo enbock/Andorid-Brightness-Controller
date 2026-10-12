@@ -3,7 +3,7 @@ package com.ambientbrightness.infrastructure
 import android.app.AppOpsManager
 import android.content.Context
 import android.provider.Settings
-import com.ambientbrightness.core.WriteSettingsPermissionChecker
+import com.ambientbrightness.core.AutomaticBrightnessControl.WriteSettingsPermissionChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.SharingStarted

@@ -1,7 +1,7 @@
-package com.ambientbrightness.core.BrightnessRangeResolver
+package com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRangeResolver
 
-import com.ambientbrightness.core.BrightnessRange
-import com.ambientbrightness.core.BrightnessValue
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRange
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
 
 /**
  * Resolves a reported device range, using a positive-minimum fallback when it is unavailable

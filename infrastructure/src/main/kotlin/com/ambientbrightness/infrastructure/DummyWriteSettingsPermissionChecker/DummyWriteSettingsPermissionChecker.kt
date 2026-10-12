@@ -1,6 +1,6 @@
 package com.ambientbrightness.infrastructure
 
-import com.ambientbrightness.core.WriteSettingsPermissionChecker
+import com.ambientbrightness.core.AutomaticBrightnessControl.WriteSettingsPermissionChecker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

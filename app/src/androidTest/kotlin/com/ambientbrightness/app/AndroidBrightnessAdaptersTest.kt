@@ -5,8 +5,8 @@ import android.os.ParcelFileDescriptor
 import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.ambientbrightness.core.BrightnessValue
-import com.ambientbrightness.core.BrightnessWriteResult
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessWriteResult
 import com.ambientbrightness.infrastructure.AndroidDeviceBrightnessRangeClient
 import com.ambientbrightness.infrastructure.AndroidSystemBrightnessClient
 import com.ambientbrightness.infrastructure.AndroidWriteSettingsPermissionChecker

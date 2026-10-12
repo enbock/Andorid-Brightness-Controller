@@ -2,9 +2,9 @@ package com.ambientbrightness.infrastructure
 
 import android.content.Context
 import android.provider.Settings
-import com.ambientbrightness.core.BrightnessValue
-import com.ambientbrightness.core.BrightnessWriteResult
-import com.ambientbrightness.core.SystemBrightnessClient
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessWriteResult
+import com.ambientbrightness.core.AutomaticBrightnessControl.SystemBrightnessClient
 
 /**
  * Reads and writes only [Settings.System.SCREEN_BRIGHTNESS] through the application resolver.

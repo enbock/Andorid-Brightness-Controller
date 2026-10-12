@@ -259,14 +259,14 @@ hardware. No Compose tests.
   *Verify: compiles with no Android dependency; VOs enforce `>= 1`; contract tests on fakes.*
 - [x] **T2 — Lux→brightness mapping curve and hysteresis**: implement `DefaultBrightnessMappingCurve`
   (log-lux piecewise anchors, monotonic, low-light floor) and `HysteresisGate`.
-  *Files: `:core/src/main/kotlin/com/ambientbrightness/core/BrightnessMappingCurve/**`,
+  *Files: `:core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/BrightnessMappingCurve/**`,
   `.../HysteresisGate/**`.*
   *Done: implementation commit `db5aeb2a42b0fb04ff8c667bf18f31a936c9f94f`.*
   *Verify: monotonicity property test, low-light floor (AC3.3) and breakpoint oscillation (AC3.2).*
 - [x] **T3 — Device range resolution, scaling, clamping and dead-band**: implement
   `BrightnessRangeResolver`, `BrightnessRangeScaler` and `MinimumStepDeadBand` as reusable pure-core
   helpers. The controller orchestration consumes these helpers in T5.
-  *Files: `:core/src/main/kotlin/com/ambientbrightness/core/{BrightnessRangeResolver,BrightnessRangeScaler,MinimumStepDeadBand}/**`.*
+  *Files: `:core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/{BrightnessRangeResolver,BrightnessRangeScaler,MinimumStepDeadBand}/**`.*
   *Verify: unit tests for AC2.2/AC2.3, never-0 (AC2.1) and suppression below min step (AC1.2).*
 - [x] **T4 — System brightness writer, permission checker and failure handling**: implement
   `AndroidSystemBrightnessClient`, `AndroidDeviceBrightnessRangeClient`,
@@ -312,20 +312,20 @@ that connects the F1 stream, the status surface and the composition root.
 
 *Done: implementation commit `8d137e13aab57afb3e28464d22953d81b7abe9f7`. Added these files:*
 
-- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessController.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessContext.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessMappingCurve/BrightnessMappingCurve.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessRange.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessSnapshot.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessStatus.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessTransform.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessValue.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/BrightnessWriteResult.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/BuiltInAdaptiveBrightnessState.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/DeviceBrightnessRangeClient.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/HysteresisGate/HysteresisGate.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/SystemBrightnessClient.kt`
-- `core/src/main/kotlin/com/ambientbrightness/core/WriteSettingsPermissionChecker.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/AutomaticBrightnessController.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/BrightnessContext.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/BrightnessMappingCurve/BrightnessMappingCurve.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/BrightnessRange.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/BrightnessSnapshot.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/BrightnessStatus.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/BrightnessTransform.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/BrightnessValue.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/BrightnessWriteResult.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/BuiltInAdaptiveBrightnessState.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/DeviceBrightnessRangeClient.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/HysteresisGate/HysteresisGate.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/SystemBrightnessClient.kt`
+- `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/WriteSettingsPermissionChecker.kt`
 - `core/src/test/kotlin/com/ambientbrightness/core/BrightnessContractsTest.kt`
 - `core/src/test/kotlin/com/ambientbrightness/core/testdoubles/BrightnessContractFakes.kt`
 
@@ -349,8 +349,8 @@ that connects the F1 stream, the status surface and the composition root.
 - Added focused curve and hysteresis JVM tests covering AC3.1/3.2/3.3, anchor/interpolation
   outputs, monotonicity/bounds, invalid values, threshold jitter, and multi-segment jumps.
 - Files:
-  `core/src/main/kotlin/com/ambientbrightness/core/BrightnessMappingCurve/DefaultBrightnessMappingCurve.kt`,
-  `core/src/main/kotlin/com/ambientbrightness/core/HysteresisGate/DefaultHysteresisGate.kt`,
+  `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/BrightnessMappingCurve/DefaultBrightnessMappingCurve.kt`,
+  `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/HysteresisGate/DefaultHysteresisGate.kt`,
   `core/src/test/kotlin/com/ambientbrightness/core/BrightnessMappingCurve/DefaultBrightnessMappingCurveTest.kt`,
   `core/src/test/kotlin/com/ambientbrightness/core/HysteresisGate/DefaultHysteresisGateTest.kt`.
 - Verification passed: `:core:test --no-daemon`;
@@ -374,9 +374,9 @@ commit `6b3e978`.*
   midpoint, saturation, singleton and NaN scaling, never-zero behavior, exact/below-threshold
   decisions, first request, and unchanged prior value after suppression.
 - Files:
-  `core/src/main/kotlin/com/ambientbrightness/core/BrightnessRangeResolver/BrightnessRangeResolver.kt`,
-  `core/src/main/kotlin/com/ambientbrightness/core/BrightnessRangeScaler/BrightnessRangeScaler.kt`,
-  `core/src/main/kotlin/com/ambientbrightness/core/MinimumStepDeadBand/MinimumStepDeadBand.kt`,
+  `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/BrightnessRangeResolver/BrightnessRangeResolver.kt`,
+  `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/BrightnessRangeScaler/BrightnessRangeScaler.kt`,
+  `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/MinimumStepDeadBand/MinimumStepDeadBand.kt`,
   `core/src/test/kotlin/com/ambientbrightness/core/BrightnessRangeResolver/BrightnessRangeResolverTest.kt`,
   `core/src/test/kotlin/com/ambientbrightness/core/BrightnessRangeScaler/BrightnessRangeScalerTest.kt`,
   `core/src/test/kotlin/com/ambientbrightness/core/MinimumStepDeadBand/MinimumStepDeadBandTest.kt`.

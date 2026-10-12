@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AutomaticBrightnessControl
 
 /** Outcome of a requested system brightness write (or deliberate write suppression). */
 sealed interface BrightnessWriteResult {

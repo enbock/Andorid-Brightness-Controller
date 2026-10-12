@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AutomaticBrightnessControl
 
 /**
  * In-memory snapshot of the brightness in effect before the controller starts.

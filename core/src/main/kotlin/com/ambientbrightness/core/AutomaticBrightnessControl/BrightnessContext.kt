@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AutomaticBrightnessControl
 
 /**
  * Context supplied to a post-mapping, pre-clamp [BrightnessTransform].

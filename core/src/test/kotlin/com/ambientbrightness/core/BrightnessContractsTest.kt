@@ -1,5 +1,12 @@
 package com.ambientbrightness.core
 
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessContext
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRange
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessSnapshot
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessStatus
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessWriteResult
+import com.ambientbrightness.core.AutomaticBrightnessControl.BuiltInAdaptiveBrightnessState
 import com.ambientbrightness.core.testdoubles.FakeDeviceBrightnessRangeClient
 import com.ambientbrightness.core.testdoubles.FakeSystemBrightnessClient
 import com.ambientbrightness.core.testdoubles.FakeWriteSettingsPermissionChecker

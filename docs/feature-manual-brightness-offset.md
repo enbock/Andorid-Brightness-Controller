@@ -243,7 +243,7 @@ Compose tests.
   `BrightnessOffsetTransform : BrightnessTransform` — `fraction + percent / 100`, identity at `0` —
   reading `BrightnessRange` from `BrightnessContext` and publishing the clamp indicator via
   `OffsetApplicationSink`; add `range` to F2's `BrightnessContext`.
-  *Files: `:core/.../BrightnessOffsetTransform/**`, `:core/.../BrightnessContext/**` (additive).*
+  *Files: `:core/.../BrightnessOffsetTransform/**`, `:core/.../AutomaticBrightnessControl/BrightnessContext/**` (additive).*
   *Verify: unit tests for identity (AC2.4), span arithmetic (AC3.1) and both clamp directions
   (AC2.1–AC2.3).*
 - [ ] **T4 — Offset state service**: implement `BrightnessOffsetStateHolder` backing

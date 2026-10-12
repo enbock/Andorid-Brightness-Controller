@@ -1,4 +1,4 @@
-package com.ambientbrightness.core.BrightnessMappingCurve
+package com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessMappingCurve
 
 import kotlin.math.log10
 

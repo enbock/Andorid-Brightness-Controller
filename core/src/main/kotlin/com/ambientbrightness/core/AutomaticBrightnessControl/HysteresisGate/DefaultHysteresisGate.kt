@@ -1,4 +1,4 @@
-package com.ambientbrightness.core.HysteresisGate
+package com.ambientbrightness.core.AutomaticBrightnessControl.HysteresisGate
 
 /**
  * Stateful 10% directional hysteresis around the default curve's internal lux anchors.

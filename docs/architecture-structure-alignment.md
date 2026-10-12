@@ -185,7 +185,7 @@ Every task below is therefore fully specified: do not re-open these decisions.
         and no `import com.ambientbrightness.core.BrightnessMappingCurve` /
         `...core.HysteresisGate` left in any source file.
 
-- [ ] **T4 — Create the `AutomaticBrightnessControl` responsibility in `:core` (M)** — depends on: T3
+- [x] **T4 — Create the `AutomaticBrightnessControl` responsibility in `:core` (M)** — depends on: T3
       - Move the brightness contract types and the already-foldered services:
         `AutomaticBrightnessController.kt`, `BrightnessValue.kt`, `BrightnessRange.kt`,
         `BrightnessContext.kt`, `BrightnessStatus.kt`, `BrightnessWriteResult.kt`,
@@ -365,3 +365,57 @@ partially finished run never leaves the docs describing a stale layout.
   → `BUILD SUCCESSFUL`; `:core:test` **80 tests / 0 failures / 0 skipped** (15 classes),
   `:infrastructure:test` **26 tests / 0 failures / 0 skipped** (6 classes), `:app:assembleDebug` green
   (`app-debug.apk`). `:infrastructure:compileDebugAndroidTestKotlin` also green.
+
+### T4 — Create the `AutomaticBrightnessControl` responsibility in `:core`
+
+- Done in the single T4 commit `refactor(core): introduce the AutomaticBrightnessControl responsibility`
+  (SHA is recorded by the T10 sweep, because a commit cannot contain its own hash).
+- Moved with `git mv` into `core/src/main/kotlin/com/ambientbrightness/core/AutomaticBrightnessControl/`:
+  the twelve contract types flat under it (`AutomaticBrightnessController.kt`, `BrightnessContext.kt`,
+  `BrightnessRange.kt`, `BrightnessSnapshot.kt`, `BrightnessStatus.kt`, `BrightnessTransform.kt`,
+  `BrightnessValue.kt`, `BrightnessWriteResult.kt`, `BuiltInAdaptiveBrightnessState.kt`,
+  `DeviceBrightnessRangeClient.kt`, `SystemBrightnessClient.kt`, `WriteSettingsPermissionChecker.kt`)
+  plus the five folders `BrightnessMappingCurve/`, `HysteresisGate/`, `BrightnessRangeResolver/`,
+  `BrightnessRangeScaler/`, `MinimumStepDeadBand/` as whole directories (no file moves inside them).
+  The emptied layer root directories were deleted, so only `AutomaticBrightnessControl/`,
+  `AmbientLightSensing/` and `Shared/` remain there.
+- Packages: the flat files declare `com.ambientbrightness.core.AutomaticBrightnessControl`, the
+  foldered files `com.ambientbrightness.core.AutomaticBrightnessControl.<TypeFolder>`
+  (`BrightnessMappingCurve`, `HysteresisGate`, `BrightnessRangeResolver`, `BrightnessRangeScaler`,
+  `MinimumStepDeadBand`). No package name equals the fully-qualified name of a classifier declared in
+  its parent package: the interfaces live inside their own folders, and no folder is named like a
+  sibling folder's file.
+- Imports rewritten (imports only, no test regroup): inside `:core` the foldered implementations
+  (`BrightnessRangeResolver`, `BrightnessRangeScaler`, `MinimumStepDeadBand`) and
+  `core/src/test/**` → `BrightnessContractsTest`, `testdoubles/BrightnessContractFakes.kt`; outside
+  `:core` → `infrastructure/src/main/**` (six Android/Dummy adapters),
+  `infrastructure/src/test/**` (`AndroidSystemBrightnessClientTest`,
+  `AndroidDeviceBrightnessRangeClientTest`, `DummyBrightnessAdaptersTest`) and
+  `app/src/androidTest/**` (`AndroidBrightnessAdaptersTest`). `infrastructure/src/androidTest/**`
+  contains no reference to a moved type, so it needed no change.
+- Necessity, not a package choice: because the test sources keep their old packages (no regroup),
+  the unqualified references to the moved types had to become explicit imports —
+  `BrightnessContractsTest` (7 `BrightnessValue`/`BrightnessRange`/`BrightnessSnapshot`/
+  `BrightnessStatus`/`BrightnessWriteResult`/`BrightnessContext`/`BuiltInAdaptiveBrightnessState`
+  imports) and the one-class imports of `DefaultBrightnessMappingCurveTest`,
+  `DefaultHysteresisGateTest`, `BrightnessRangeResolverTest`, `BrightnessRangeScalerTest`,
+  `MinimumStepDeadBandTest`. Same shape of deviation as T3's `LightLevel` note, no behaviour change.
+- Docs corrected in this commit: `docs/feature-automatic-brightness-control.md` (the T2/T3 `Files:`
+  hints and the T1/T2/T3 `Implementation Notes` file lists for the moved main files; the `core/src/test/**`
+  entries were left untouched because the test layout did not change) and
+  `docs/feature-manual-brightness-offset.md` (the T3 `:core/.../BrightnessContext/**` example).
+  `docs/feature-background-service.md`, `docs/feature-status-dashboard.md` and
+  `docs/EPIC-ambient-brightness-controller.md` reference the moved types only as type names in prose,
+  never by path, and `docs/feature-ambient-light-sensing.md` no longer carries a
+  `BrightnessMappingCurve`/`HysteresisGate` path after T3, so they needed no change (verified with
+  `rg 'core/(AutomaticBrightnessController|BrightnessContext|BrightnessRange|BrightnessSnapshot|BrightnessStatus|BrightnessTransform|BrightnessValue|BrightnessWriteResult|BuiltInAdaptiveBrightnessState|DeviceBrightnessRangeClient|SystemBrightnessClient|WriteSettingsPermissionChecker|BrightnessMappingCurve|HysteresisGate|BrightnessRangeResolver|BrightnessRangeScaler|MinimumStepDeadBand)' docs`).
+- Verification: `.\gradlew.bat --console=plain :core:test :infrastructure:test :app:assembleDebug
+  :infrastructure:compileDebugAndroidTestKotlin` → `BUILD SUCCESSFUL`;
+  `:core:test` **80 tests / 0 failures / 0 skipped** (15 classes), `:infrastructure:test`
+  **26 tests / 0 failures / 0 skipped** (6 classes), `app-debug.apk` produced.
+  The full-module re-analysis proof was run as
+  `.\gradlew.bat --console=plain --no-build-cache --rerun-tasks :core:clean :core:test`
+  → `BUILD SUCCESSFUL` with `:core:compileKotlin`, `:core:compileTestKotlin` and `:core:test` all
+  executed (no cache hit), so no incremental state hides a package/classifier error.
+- No other deviation; the refactor is move/rename/package/import only — no signature, logic or
+  formatting change.

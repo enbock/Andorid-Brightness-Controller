@@ -1,7 +1,8 @@
 package com.ambientbrightness.core.BrightnessRangeResolver
 
-import com.ambientbrightness.core.BrightnessRange
-import com.ambientbrightness.core.BrightnessValue
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRange
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRangeResolver.BrightnessRangeResolver
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test

@@ -2,9 +2,9 @@ package com.ambientbrightness.infrastructure
 
 import android.content.res.Resources
 import android.util.Log
-import com.ambientbrightness.core.BrightnessRange
-import com.ambientbrightness.core.BrightnessValue
-import com.ambientbrightness.core.DeviceBrightnessRangeClient
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRange
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
+import com.ambientbrightness.core.AutomaticBrightnessControl.DeviceBrightnessRangeClient
 
 /**
  * Discovers the device maximum using Android's internal system resource when it is available.

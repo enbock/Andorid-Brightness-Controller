@@ -1,7 +1,7 @@
-package com.ambientbrightness.core.MinimumStepDeadBand
+package com.ambientbrightness.core.AutomaticBrightnessControl.MinimumStepDeadBand
 
-import com.ambientbrightness.core.BrightnessValue
-import com.ambientbrightness.core.BrightnessWriteResult
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessWriteResult
 import kotlin.math.abs
 
 /**

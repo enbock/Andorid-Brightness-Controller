@@ -1,4 +1,4 @@
-package com.ambientbrightness.core
+package com.ambientbrightness.core.AutomaticBrightnessControl
 
 /** Extension hook applied after lux mapping and before device-range clamping. */
 interface BrightnessTransform {
