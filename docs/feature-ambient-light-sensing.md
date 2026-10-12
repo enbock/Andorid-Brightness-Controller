@@ -138,8 +138,12 @@ Added/changed components:
   rejection). `OutlierClampingStabiliser` is constructed with `maxRangeLux`. This matches F4's
   already-written `stabilise(sample): LuxSample?`; F4's "stateless" wording refers to the fixed
   per-sample duties, not the retained state. Also does range clamping and 0-lux validity.
-- `AmbientLightCollector` (`:app`, thin): consumes the boundary interface and forwards samples;
-  no business logic.
+- `AmbientLightCollector` (`:app`, `AmbientLightSensing/Collector/`, thin): consumes the boundary
+  interface and forwards samples; no business logic. `:app` follows the same responsibility-folder
+  convention as `:core`: the composition root lives in `Composition/`, this collector in
+  `AmbientLightSensing/Collector/` and the top-level view composable in `AmbientLightSensing/View/` —
+  future `:app` tasks must add their files to those responsibility folders instead of one directory
+  per type (moved by T9).
 
 ### Data Flow
 
@@ -282,7 +286,11 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   Keep them Android-free. *Files: `:core/src/main/kotlin/com/ambientbrightness/core/**`.*
   *Verify: compiles with no Android dependency; unit tests for classifier boundaries.*
   *Done: commit `6699490`. All types live in `:core`, package `com.ambientbrightness.core`, one
-  directory per type, no `android.*` import and no Android plugin. `:core` gained
+  directory per type *(superseded: `:core` now files every type by responsibility — the F1 types
+  under `AmbientLightSensing/`, the F2 types under `AutomaticBrightnessControl/` — with the data and
+  port types directly beside the type they serve and the cross-cutting `Clock` in `Shared/`; future
+  `:core` tasks must use those responsibility folders instead of one directory per type. Corrected by
+  T10)*, no `android.*` import and no Android plugin. `:core` gained
   `implementation(libs.kotlinx.coroutines.core)` (1.10.2) through the version catalog for
   `Flow`/`StateFlow`; the catalog also gained `kotlinx-coroutines-test` (1.10.2) for T3.*
   *Design gaps the architect resolved before implementation (classifier thresholds, availability

@@ -130,6 +130,13 @@ directions (`Application → Core`, `Infrastructure → Core`, composition root 
    on-device evidence: those tests passed 5/5 only after `adb shell appops set com.ambientbrightness.app
    WRITE_SETTINGS allow` while the test ran on the app target.
    *Enforcement (clarified in T9):* the rule is enforced **structurally** — `:app` is reorganized so only `Composition/**` imports `com.ambientbrightness.infrastructure.*` — and verified by grep in T10. An automated `:app` guard mirroring the T2/T8 tests was considered and explicitly declined by the Project Owner, because `:app` has no JVM test source set: it would require adding `app/src/test/**` plus `testImplementation(libs.junit)`. Limitation: the composition-root isolation is therefore not machine-checked; a future task may add such a guard.
+   *Clarification (T10):* the rule is verified over the **production** source set. `git grep -n
+   "com\.ambientbrightness\.infrastructure\." -- app/src/main/kotlin` returns exactly the two
+   `Composition/AmbientBrightnessApplication.kt` imports (lines 7–8). The instrumented
+   `app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt` also imports
+   three Android adapters (lines 10–12) — that is the test-scope use of
+   `implementation(project(":infrastructure"))` the T9 correction above mandates, so the "no file in
+   `:app` outside `Composition/`" sentence applies to `app/src/main/kotlin`, not to the androidTest set.
 3. **Does the refined rule need a streaming exception?** → **Decision: yes, and it is documented in
    the project, not silently ignored.** A cold-`Flow` use case legitimately omits the
    `Request`/`Response` pair: the result is a stream, not a value object, and `AmbientLightService.start()`
@@ -317,7 +324,7 @@ Every task below is therefore fully specified: do not re-open these decisions.
         instantiated. No emulator was attached during this run, so both device-level checks stay open and
         rest on the documented 5/5 run in `docs/feature-automatic-brightness-control.md`.
 
-- [ ] **T10 — Documentation sweep and final verification (S)** — depends on: T3–T9
+- [x] **T10 — Documentation sweep and final verification (S)** — depends on: T3–T9
       - Several docs were already corrected inside T3–T9; this task is the final, exhaustive check.
       - Re-grep `src/main/kotlin` / `src/test/kotlin` paths in
         `docs/EPIC-ambient-brightness-controller.md` and all seven `docs/feature-*.md`; fix anything
@@ -784,11 +791,16 @@ partially finished run never leaves the docs describing a stale layout.
   imports). No new UI, no ViewModel, no new callback, no behaviour change — the view stays the empty
   `Scaffold`.
 - Composition-root isolation enforced structurally (decision 2, whose *Enforcement* clarification is
-  appended there). Grep proof: `git grep -n "com\.ambientbrightness\.infrastructure\." -- app/src` returns
+  appended there). Grep proof over the production source set:
+  `git grep -n "com\.ambientbrightness\.infrastructure\." -- app/src/main/kotlin` returns
   exactly two hits, both under `Composition/` —
   `app/src/main/kotlin/com/ambientbrightness/app/Composition/AmbientBrightnessApplication.kt:7`
   (`...AmbientLightSensing.AmbientLightSensorClient.Android.AndroidAmbientLightSensorClient`) and `:8`
-  (`...AmbientLightSensing.ScreenStateClient.Android.AndroidScreenStateClient`). No file under
+  (`...AmbientLightSensing.ScreenStateClient.Android.AndroidScreenStateClient`). Run over all of
+  `app/src` the same grep reports three further hits in
+  `app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt` (lines 10–12) —
+  the test-scope use of `implementation(project(":infrastructure"))` that the T9 correction mandates in
+  `00012a6`, not a production dependency (see the *Clarification (T10)* under decision 2). No file under
   `AmbientLightSensing/**` and not `MainActivity.kt` references `infrastructure.*`; they depend on `:core`
   plus the component facade. No automated `:app` guard was added (declined by the Project Owner, see
   decision 2), so the isolation stays grep-verified here and in T10.
@@ -870,4 +882,106 @@ partially finished run never leaves the docs describing a stale layout.
   neither the manifest rename nor the instrumented adapter test could be exercised on a device — both are
   documented in `docs/feature-automatic-brightness-control.md` and must be re-checked by the next
   `connectedDebugAndroidTest` run against an API 36 emulator.
+
+### T10 — Documentation sweep and final verification
+
+- Scope: documentation and verification only — no production code, no test code, no
+  `build.gradle.kts`/`settings.gradle.kts`/`libs.versions.toml`, no source-file move/rename/delete and
+  no new Markdown file. `git status --short` lists only the two edited doc files.
+- **Exhaustive documentation sweep (item 1) — no stale path remained.** Every `src/main/kotlin`,
+  `src/test/kotlin` and `src/androidTest/kotlin` path (file *and* directory) in
+  `docs/EPIC-ambient-brightness-controller.md` and all seven `docs/feature-*.md` was re-grepped and
+  mechanically resolved against the working tree. The per-task corrections of T3–T9 already fixed every
+  path those tasks invalidated (T3 the `:core` file lists, T4 the F2 `:core` paths, T5 the
+  `ReadingStabiliser` folder, T7 the `Task/**` additions, T8 the `AmbientLightSensing/.../{Android,Dummy}/`
+  and `AutomaticBrightnessControl/.../{Android,Dummy}/` adapter paths, T9 the `Composition/` and
+  `AmbientLightSensing/Collector/` paths plus the reverted adapter-test path), so T10 corrected **no
+  path** in the feature docs. Per-purpose verification below.
+- **`docs/feature-ambient-light-sensing.md` — superseded *"one directory per type"* statement (item 2).**
+  Two in-place corrections, surrounding narrative kept:
+  - The `AmbientLightCollector` ownership bullet in *Architecture & Components* now names its
+    responsibility folder (`:app`, `AmbientLightSensing/Collector/`) and spells out the `:app` convention
+    (`Composition/` composition root, `AmbientLightSensing/Collector/` collector,
+    `AmbientLightSensing/View/` view) with the marker `(moved by T9)`, so future `:app` tasks are pointed
+    at the responsibility folders.
+  - The T1 `Done` note's `one directory per type` phrase is marked superseded with the responsibility
+    convention written out — `:core` groups every type by responsibility (`AmbientLightSensing/`,
+    `AutomaticBrightnessControl/`), the data/port types sit beside the type they serve and the
+    cross-cutting `Clock` lives in `Shared/` — and carries the marker `Corrected by T10`. No other
+    resolution appears in that file.
+- **Streaming exception (item 3) — checked, consistent, no change needed.** The exception recorded by T6
+  (`docs/feature-ambient-light-sensing.md`, *Architecture & Components*, `AmbientLightUseCase` bullet)
+  says that `AmbientLightUseCase.samples()` and the pinned `AmbientLightService.start(): Flow<LuxSample>`
+  intentionally omit the `Request`/`Response` pair because the result is a stream, not a value object,
+  and the `Flow` *is* the return channel. That matches the pinned signature (`fun start(): Flow<LuxSample>`,
+  no input parameter) and decision 3 above (`samples()` needs no input, so the request is legitimately
+  omitted), and no doc contradicted it — so no Kotlin interface and no doc text was changed. The only
+  remaining action is user-level (residual item 2).
+- **Composition-root isolation (item 4) — grep proof, structural only.**
+  - `git grep -n "com\.ambientbrightness\.infrastructure\." -- app/src` →
+    `app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt:10`,
+    `:11`, `:12` and
+    `app/src/main/kotlin/com/ambientbrightness/app/Composition/AmbientBrightnessApplication.kt:7`, `:8`.
+  - `git grep -n "com\.ambientbrightness\.infrastructure\." -- app/src/main/kotlin --and --not -e Composition` →
+    only `app/src/main/kotlin/com/ambientbrightness/app/Composition/AmbientBrightnessApplication.kt:7`
+    and `:8`.
+  - The three `AndroidBrightnessAdaptersTest.kt` hits are the test-scope use of
+    `implementation(project(":infrastructure"))` that the T9 correction mandates (that test must run on
+    the app instrumentation target), so over the **production** source set the isolation holds: only
+    `Composition/AmbientBrightnessApplication.kt` (lines 7–8) imports
+    `com.ambientbrightness.infrastructure.*`; nothing else under `app/src/main/kotlin` — not
+    `MainActivity.kt`, not the collector, not the view — references an adapter. The wording of decision 2
+    is clarified accordingly in *Open questions*, item 2 (*Clarification (T10)*). *Limitation:* this
+    isolation is **not machine-enforced**: `:app` has no JVM test source set (decision 2, *Enforcement*),
+    so no `:app` counterpart of the T2/T8 `ArchitectureStructureTest` exists and the proof above relies on
+    review.
+- **Verification (item 6) — exact commands and results.**
+  - `.\gradlew.bat --console=plain :core:test :infrastructure:test :app:assembleDebug :app:compileDebugAndroidTestKotlin :infrastructure:compileDebugAndroidTestKotlin`
+    → `BUILD SUCCESSFUL in 943ms` (76 actionable tasks: 76 up-to-date). Because the test tasks were
+    `UP-TO-DATE`, both module test tasks were re-run uncached:
+    `.\gradlew.bat --console=plain :core:test :infrastructure:test --rerun-tasks` → `BUILD SUCCESSFUL in 3s`
+    (19 actionable tasks: 19 executed, `:core:test` and `:infrastructure:testDebugUnitTest` executed).
+  - Re-read test-result XMLs: `core\build\test-results\test\*.xml` → **16 files, 81 tests / 0 failures /
+    0 skipped**; `infrastructure\build\test-results\testDebugUnitTest\*.xml` → **7 files, 27 tests /
+    0 failures / 0 skipped**. Both are the T1 baseline counts plus the two guard tests (T2, T8) — no test
+    was added, edited, skipped or `@Disabled` in T10.
+  - Path-existence proof: extract every token matching
+    `[A-Za-z0-9_][A-Za-z0-9_./-]*/src/[A-Za-z0-9_./-]*\.(kt|xml)` from every `docs/*.md`, skip
+    ellipsis/wildcard/brace pseudo-paths and the `GuardScratch*` negative-proof files, then `Test-Path`
+    each remaining token → 79 path occurrences resolved OK and **every documented `*/src/**` path
+    resolves on disk**; the only 7 unresolved occurrences are the four intentional historical `old → new`
+    paths inside this file (lines 522, 533, 693, 808) and the intentional planned
+    `app/src/main/res/values/strings.xml` (line 948, plus line 953 as a repeated exception reference, and
+    `docs/feature-status-dashboard.md` line 274) of the not-yet-implemented
+    `docs/feature-status-dashboard.md`.
+  - Deliberately **not** changed, with reason: the historical `old → new` diff paths in this file's
+    `## Implementation Notes` (it is the change log of this refactor), the `GuardScratch.kt` /
+    `GuardScratchNoPackage.kt` negative-proof paths in T2/T8, ellipsis pseudo-paths (`.../`), the planned
+    `:app/src/main/res/values/strings.xml`, the still-matching
+    `:app/src/main/kotlin/com/ambientbrightness/app/**` wildcards, and the future task file lists of the
+    not-yet-implemented features F3–F7 (`AppSetupService/**`, `BrightnessOffset/**`, `ResponseTuning/**`,
+    `StatusDashboard/**`, `SetupFlow*/**`, `Values-de/strings.xml`) — these name locations that T3–T9 never
+    moved and already use the responsibility-level or ellipsis form, so correcting them would re-scope
+    future features.
+- **Recorded SHAs** (a commit cannot cite its own hash, so T7/T8/T9 left a placeholder): T7 `aec45ae`
+  (`refactor(core): split DefaultAmbientLightService into Task collaborators`), T8 `cea6bfc`
+  (`refactor(infrastructure): regroup adapters by responsibility, client and variant`), T9 `d7e660c`
+  (`refactor(app): separate the composition root, collector and view`) + T9 fix `00012a6` (`fix(app):
+  keep the android brightness adapter test on the app instrumentation target`), and **T10 = (this commit)**.
+- **Residual / open items**
+  1. No emulator was attached during T1–T10, so `connectedDebugAndroidTest` was never run in this
+     refactor: the two device-level checks — the `app/src/main/AndroidManifest.xml` rename to
+     `.Composition.AmbientBrightnessApplication` (invisible to every compile task) and the instrumented
+     adapter test that stays in `:app` — rest on the documented 5/5 run in
+     `docs/feature-automatic-brightness-control.md` and must be re-checked by the next
+     `connectedDebugAndroidTest` run against an API 36 emulator.
+  2. The user-level instruction file
+     (`~/.copilot/instructions/clean-architecture-principles.instructions.md`) lives outside this
+     repository and still needs the streaming-exception sentence: *"An exception applies to streaming use
+     cases: a use case whose result is a `Flow` (or equivalent observable stream) omits
+     `Request`/`Response`; the request is omitted when no input is needed and the stream itself is the
+     result."*
+  3. The plan's original T9 relocation of `AndroidBrightnessAdaptersTest.kt` into `:infrastructure`
+     androidTest was wrong and was reverted in `00012a6` (see the *Correction* paragraph under
+     *Open questions*, item 2).
 
