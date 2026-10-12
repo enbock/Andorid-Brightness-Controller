@@ -113,13 +113,22 @@ directions (`Application → Core`, `Infrastructure → Core`, composition root 
    `Core/Shared/` is the place for further cross-cutting ports only, never for domain types.
 2. **Composition-root isolation?** → **Decision: yes, enforced.**
    Only `app/.../app/Composition/**` may import `com.ambientbrightness.infrastructure.*`. Everything
-   else in `:app` (view, collector) depends on `:core` plus the component facade. Consequence: the
-   adapter test that currently sits in `:app` androidTest moves to `:infrastructure` (T9). The relocation
-   is a move plus a `package`-line change only: the test keeps its three
-   `com.ambientbrightness.infrastructure.AutomaticBrightnessControl.*.Android.*` adapter imports verbatim,
-   because T8 placed those adapters in sub-packages and the module-root package cannot see them. The
-   application class move in the same task also requires `app/src/main/AndroidManifest.xml` to name
-   `.Composition.AmbientBrightnessApplication` — a source edit, not a build-file change (see T9).
+   else in `:app` (view, collector) depends on `:core` plus the component facade. Consequence: no file in
+   `:app` outside `Composition/` may reference an adapter type, and the instrumented adapter test stays in
+   `:app` androidTest (see the *Correction* paragraph below). The application class move in the same task
+   requires `app/src/main/AndroidManifest.xml` to name `.Composition.AmbientBrightnessApplication` — a
+   source edit, not a build-file change (see T9).
+   *Correction (T9, commit `00012a6`):* T9 first relocated
+   `AndroidBrightnessAdaptersTest.kt` into `:infrastructure` androidTest and had to revert that relocation
+   in `00012a6`. `infrastructure/src/main/AndroidManifest.xml` is an empty manifest (no `WRITE_SETTINGS`,
+   which `app/src/main/AndroidManifest.xml` does declare) and the `:infrastructure` androidTest
+   instrumentation target is `com.ambientbrightness.infrastructure.test`, so `Settings.System.canWrite()`
+   is `false` there: the write/read-back test would silently skip via `assumeTrue`, the
+   permission-observation test would fail its hard `assertTrue`, and the private helper's
+   `appops set com.ambientbrightness.app …` would target a package the test process is not running as —
+   none of it visible to any compile task. `docs/feature-automatic-brightness-control.md` records the
+   on-device evidence: those tests passed 5/5 only after `adb shell appops set com.ambientbrightness.app
+   WRITE_SETTINGS allow` while the test ran on the app target.
    *Enforcement (clarified in T9):* the rule is enforced **structurally** — `:app` is reorganized so only `Composition/**` imports `com.ambientbrightness.infrastructure.*` — and verified by grep in T10. An automated `:app` guard mirroring the T2/T8 tests was considered and explicitly declined by the Project Owner, because `:app` has no JVM test source set: it would require adding `app/src/test/**` plus `testImplementation(libs.junit)`. Limitation: the composition-root isolation is therefore not machine-checked; a future task may add such a guard.
 3. **Does the refined rule need a streaming exception?** → **Decision: yes, and it is documented in
    the project, not silently ignored.** A cold-`Flow` use case legitimately omits the
@@ -278,32 +287,15 @@ Every task below is therefore fully specified: do not re-open these decisions.
       - Update imports in `app/src/androidTest/**` (one file): `AmbientBrightnessComponentTest.kt` keeps
         `package com.ambientbrightness.app` but uses `AmbientBrightnessComponent` unqualified, so it needs
         `import com.ambientbrightness.app.Composition.AmbientBrightnessComponent` after the component moves
-        into `Composition/`. No other `:app` androidTest file stays behind besides this and the relocated
-        adapter test below.
-      - Relocate `app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt`
-        to `infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/AndroidBrightnessAdaptersTest.kt`
-        (`git mv`) and change **only** its `package` line to `com.ambientbrightness.infrastructure`, so
-        folder and package stay consistent with the plan's folder↔package rule. It exercises
-        `AndroidDeviceBrightnessRangeClient`, `AndroidSystemBrightnessClient` and
-        `AndroidWriteSettingsPermissionChecker`, so it is an infrastructure test that currently forces
-        `:app` to depend on `infrastructure` in test scope (decision 2 in *Open questions*).
-      - **Keep the three adapter imports in the relocated test exactly as they are.** The file's imports
-        `com.ambientbrightness.infrastructure.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Android.AndroidDeviceBrightnessRangeClient`,
-        `...AutomaticBrightnessControl.SystemBrightnessClient.Android.AndroidSystemBrightnessClient` and
-        `...AutomaticBrightnessControl.WriteSettingsPermissionChecker.Android.AndroidWriteSettingsPermissionChecker`
-        are retained verbatim: after T8 those three adapters live in **sub**-packages, so a test declaring
-        the module-root package `com.ambientbrightness.infrastructure` cannot resolve them without the
-        imports — "dropping the three lines" would make
-        `:infrastructure:compileDebugAndroidTestKotlin` fail with unresolved references. The lines only
-        change meaning (cross-module import → same-module import); they are byte-identical after the move.
-        This mirrors the sibling
-        `infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/AndroidAmbientLightSensorClientTest.kt`,
-        which declares the module-root package, ignores same-package visibility and keeps its explicit
-        import of `...AmbientLightSensing.AmbientLightSensorClient.Android.AndroidAmbientLightSensorClient`.
-      - The relocated test is otherwise untouched: same class name, same `@RunWith`, the same three tests,
-        the same assertions, the same `assumeTrue` guards and the same two private helpers
-        (`setWriteSettingsAppOpMode`, `toCommandOutput`). No test is added, removed or renamed; the appops
-        string literals and the `InstrumentationRegistry` calls are not edited.
+        into `Composition/`. `AndroidBrightnessAdaptersTest.kt` is the only other `:app` androidTest file.
+      - **`AndroidBrightnessAdaptersTest.kt` stays in `app/src/androidTest/kotlin/com/ambientbrightness/app/`
+        untouched** — no relocation, no `package`-line change, no assertion change. The first version of
+        this plan moved it to `:infrastructure` androidTest; that was wrong and was reverted by commit
+        `00012a6` (evidence in the *Correction* paragraph under decision 2: no `WRITE_SETTINGS` in the
+        library manifest, instrumentation target `com.ambientbrightness.infrastructure.test`, and the 5/5
+        on-device run that only passes while the test runs on the app target). `:app` therefore keeps its
+        test-scope use of `implementation(project(":infrastructure"))`, which the composition root needs
+        anyway.
       - **Update `app/src/main/AndroidManifest.xml`**: `<application android:name=".AmbientBrightnessApplication" …>`
         becomes `android:name=".Composition.AmbientBrightnessApplication"`. The relative name resolves
         against the `namespace`/`applicationId` `com.ambientbrightness.app`, and the class moves to
@@ -317,12 +309,13 @@ Every task below is therefore fully specified: do not re-open these decisions.
         file lists) and in `docs/feature-background-service.md` where `app/.../app/**` is referenced.
       - Out of scope: no new UI, no ViewModel behaviour, no new callbacks — the view stays the current
         empty `Scaffold`.
-      - Verify: `:app:assembleDebug` green; `:infrastructure:compileDebugAndroidTestKotlin` green (the
-        compile proof that the relocated test keeps its three adapter imports — this is the task's hard
-        rule for the relocation); `connectedDebugAndroidTest` on the API 36 emulator where available. The
-        manifest rename is **not** covered by any compile task, so additionally install and launch the
-        debug APK once on the API 36 emulator where available to confirm `AmbientBrightnessApplication` is
-        instantiated.
+      - Verify: `:app:assembleDebug` green; `:app:compileDebugAndroidTestKotlin` and
+        `:infrastructure:compileDebugAndroidTestKotlin` green; `:core:test` 81/0 and `:infrastructure:test`
+        27/0 unchanged; `connectedDebugAndroidTest` on the API 36 emulator where available. The manifest
+        rename is **not** covered by any compile task, so additionally install and launch the debug APK
+        once on the API 36 emulator where available to confirm `AmbientBrightnessApplication` is
+        instantiated. No emulator was attached during this run, so both device-level checks stay open and
+        rest on the documented 5/5 run in `docs/feature-automatic-brightness-control.md`.
 
 - [ ] **T10 — Documentation sweep and final verification (S)** — depends on: T3–T9
       - Several docs were already corrected inside T3–T9; this task is the final, exhaustive check.
@@ -692,7 +685,8 @@ partially finished run never leaves the docs describing a stale layout.
 - Import consequences (imports only, no test regroup, no assertion touched):
   - `app/src/main/kotlin/com/ambientbrightness/app/AmbientBrightnessApplication.kt` (2 imports) and
     `app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt` (3 imports);
-    that instrumented test stays in `:app` because T9 relocates it.
+    that instrumented test permanently stays in `:app` — the original plan had T9 relocating it into
+    `:infrastructure`, which T9 attempted and reverted in `00012a6` (see T9).
   - The six test files keep their folder and package `com.ambientbrightness.infrastructure` at the
     module root, so they lost the same-package visibility of both the adapters and the `internal`
     helpers and gained explicit imports: `AndroidDeviceBrightnessRangeClientTest`
@@ -760,8 +754,9 @@ partially finished run never leaves the docs describing a stale layout.
 
 ### T9 — Structure the `:app` application layer
 
-- Done in one commit, `refactor(app): separate the composition root, collector and view` (the SHA cannot
-  appear in its own commit; the T10 sweep records it).
+- Done in **two** commits: `d7e660c` `refactor(app): separate the composition root, collector and view`
+  and, after the correction described below, `00012a6` `fix(app): keep the android brightness adapter test
+  on the app instrumentation target` (a commit cannot cite its own SHA; the T10 sweep records both).
 - Three files moved with `git mv` and one composable extracted into a new file; the emptied
   `AmbientBrightnessComponent/` and `AmbientLightCollector/` directories were deleted, so
   `app/src/main/kotlin/com/ambientbrightness/app/` now contains only `MainActivity.kt` plus the
@@ -801,23 +796,28 @@ partially finished run never leaves the docs describing a stale layout.
   `AmbientLightSensing/Collector/` or `AmbientLightSensing/View/`, and no file sits directly in
   `.../app/AmbientLightSensing/`, so no package name equals the FQ name of a classifier declared in its
   parent package.
-- Adapter test relocated: `app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt`
-  → `infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/AndroidBrightnessAdaptersTest.kt`
-  via `git mv`, **only** the `package` line changed to `com.ambientbrightness.infrastructure`. Same class
-  name, same `@RunWith(AndroidJUnit4::class)`, the same three tests, assertions and `assumeTrue` guards,
-  the same two private helpers; nothing added, removed, renamed or greyed out. The three adapter imports
-  are **kept** (the T9 "drop those lines" instruction was withdrawn after verification): post-T8 the three
-  adapters live in `...AutomaticBrightnessControl.<Client>.Android` sub-packages, so a test declaring the
-  module-root package cannot resolve them and dropping the imports fails
-  `:infrastructure:compileDebugAndroidTestKotlin` with unresolved references. The lines are byte-identical
-  after the move — they only flip from cross-module to same-module imports — and mirror the sibling
-  `AndroidAmbientLightSensorClientTest.kt`.
+- Adapter test: the plan's relocation was **attempted and reverted**. `d7e660c` moved
+  `app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt` to
+  `infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/AndroidBrightnessAdaptersTest.kt`
+  (package line only; imports, class name, `@RunWith`, the three tests, the assertions, the `assumeTrue`
+  guards and the two private helpers byte-identical, with `:infrastructure:compileDebugAndroidTestKotlin`
+  green), and `00012a6` moved it back to the `:app` path with `package com.ambientbrightness.app`, so
+  `git diff cea6bfc HEAD -- app/src/androidTest/kotlin/com/ambientbrightness/app/AndroidBrightnessAdaptersTest.kt`
+  is **empty**. Reason: the relocation is a runtime regression that no compile task can detect — the
+  `:infrastructure` library manifest is empty (no `WRITE_SETTINGS`), its androidTest instrumentation target
+  is `com.ambientbrightness.infrastructure.test`, so `assumeTrue(Settings.System.canWrite(…))` silently skips
+  one test, the hard `assertTrue("The test requires adb-granted WRITE_SETTINGS.", …)` fails, and
+  `setWriteSettingsAppOpMode` grants the AppOps mode to `com.ambientbrightness.app`, a package the test
+  process is not running as. `docs/feature-automatic-brightness-control.md` records that these tests were
+  moved **into** `:app` for exactly this reason and passed 5/5 on the API 36 emulator afterwards. `:app`
+  therefore keeps its instrumented adapter test on the app instrumentation target.
 - `AmbientBrightnessComponentTest.kt` stays in `app/src/androidTest/kotlin/com/ambientbrightness/app/` with
   one added import, `com.ambientbrightness.app.Composition.AmbientBrightnessComponent`; its assertions are
   untouched. No build file changed: `app/build.gradle.kts` keeps `implementation(project(":infrastructure"))`
   (the composition root constructs the Android adapters) and `infrastructure/build.gradle.kts` already
   declared `androidTestImplementation(libs.junit)`, `libs.androidx.test.runner` and
-  `libs.androidx.test.ext.junit`, so `:app` no longer needs the instrumented adapter test to exercise them.
+  `libs.androidx.test.ext.junit`; `:app` nevertheless keeps the instrumented adapter test, because it needs
+  the **app** instrumentation target rather than the library's (see the correction above).
 - `app/src/main/AndroidManifest.xml` follows the move: `android:name=".AmbientBrightnessApplication"` →
   `android:name=".Composition.AmbientBrightnessApplication"` (source edit only, no build-file change; the
   `.MainActivity` entry is unaffected because `MainActivity` stays in the package root). No compile task
@@ -831,9 +831,11 @@ partially finished run never leaves the docs describing a stale layout.
     (now `Composition/` and `AmbientLightSensing/Collector/`). `MainActivity.kt`,
     `app/src/main/AndroidManifest.xml`, `app/build.gradle.kts`, the remaining androidTest path and the
     `:app/src/main/kotlin/com/ambientbrightness/app/**` wildcard stayed valid and were not touched.
-  - `docs/feature-automatic-brightness-control.md`: the `AndroidBrightnessAdaptersTest.kt` entry of the F2
-    `Files changed:` list and the *"The actual brightness tests are in …"* sentence now point at
-    `infrastructure/src/androidTest/...`.
+  - `docs/feature-automatic-brightness-control.md`: `d7e660c` had repointed the
+    `AndroidBrightnessAdaptersTest.kt` entry of the F2 `Files changed:` list and the *"The actual brightness
+    tests are in …"* sentence at `infrastructure/src/androidTest/...`; `00012a6` restored both to the `:app`
+    path verbatim and added one sentence recording why the test has to stay on the app instrumentation
+    target.
   - `docs/feature-background-service.md`, `feature-response-tuning.md`, `feature-manual-brightness-offset.md`,
     `feature-permissions-setup-flow.md`, `feature-status-dashboard.md`: inspected, no change needed — their
     `:app/src/main/kotlin/com/ambientbrightness/app/**` entries are wildcards that still match and every
@@ -858,12 +860,14 @@ partially finished run never leaves the docs describing a stale layout.
   - Only the instrumented tests were compiled — no emulator was provisioned and `connectedAndroidTest` was
     not run, per the checklist. Nothing greyed out: no `@Disabled`, no `@Ignore`, no assertion edited and no
     test count changed.
-- Deviations: none from the clarified T9 design. Two ambiguities were escalated to the Technical Architect
-  before implementation and resolved in this document: (1) the relocated adapter test keeps its three
-  adapter imports (dropping them cannot compile against the post-T8 sub-packages) and (2) the
-  `AndroidManifest.xml` entry must follow the `AmbientBrightnessApplication` move. Residual risk for T10/a
-  device run: the manifest rename is invisible to every compile task, and the relocated test now runs
-  against the `:infrastructure` instrumentation `targetContext` while its AppOps helper still targets
-  `com.ambientbrightness.app`, so a real `connectedDebugAndroidTest` run must confirm both (the plan
-  forbids editing those assertions).
+- Deviations: none from the clarified T9 design, plus **one correction to the plan itself** — the adapter
+  test relocation was wrong and was reverted in `00012a6` (see that paragraph). Two ambiguities were
+  escalated to the Technical Architect before implementation and resolved in this document: (1) a test that
+  declares the module-root `com.ambientbrightness.infrastructure` package must keep its three adapter
+  imports (post-T8 those adapters live in sub-packages, so dropping them cannot compile) and (2) the
+  `AndroidManifest.xml` entry must follow the `AmbientBrightnessApplication` move. Residual risk: the
+  manifest rename is invisible to every compile task and no emulator was attached during this run, so
+  neither the manifest rename nor the instrumented adapter test could be exercised on a device — both are
+  documented in `docs/feature-automatic-brightness-control.md` and must be re-checked by the next
+  `connectedDebugAndroidTest` run against an API 36 emulator.
 
