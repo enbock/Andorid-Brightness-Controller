@@ -1,7 +1,6 @@
-package com.ambientbrightness.core.AmbientLightSensing.OutlierClampingStabiliser
+package com.ambientbrightness.core.AmbientLightSensing.ReadingStabiliser
 
 import com.ambientbrightness.core.AmbientLightSensing.LuxSample
-import com.ambientbrightness.core.AmbientLightSensing.ReadingStabiliser.ReadingStabiliser
 import kotlin.math.abs
 import kotlin.math.max
 

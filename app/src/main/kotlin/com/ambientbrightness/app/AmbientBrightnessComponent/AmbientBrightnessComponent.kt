@@ -3,7 +3,7 @@ package com.ambientbrightness.app
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightService.DefaultAmbientLightService
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightUseCase.AmbientLightUseCase
-import com.ambientbrightness.core.AmbientLightSensing.OutlierClampingStabiliser.OutlierClampingStabiliser
+import com.ambientbrightness.core.AmbientLightSensing.ReadingStabiliser.OutlierClampingStabiliser
 import com.ambientbrightness.core.AmbientLightSensing.ScreenStateClient
 import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
 import com.ambientbrightness.core.Shared.SystemClock

@@ -207,7 +207,7 @@ Every task below is therefore fully specified: do not re-open these decisions.
       - Verify: `:core:test` and `:infrastructure:test` green; `:app:assembleDebug` green; no stale
         `com.ambientbrightness.core.Brightness*` import path in the moved sources.
 
-- [ ] **T5 — Merge interface and default implementation folders (S)** — depends on: T3, T4
+- [x] **T5 — Merge interface and default implementation folders (S)** — depends on: T3, T4
       - The `BrightnessMappingCurve` and `HysteresisGate` merges are **already part of T3** (blocker
         fix, see T3) because the folder-consistent package name collided with the interfaces that
         still lived in the layer root. Only one merge is left here:
@@ -468,4 +468,52 @@ partially finished run never leaves the docs describing a stale layout.
 - Docs: no feature-doc path change in this task — the guard adds no production file, so it invalidates
   no documented `:core` path. The T2 checklist entry already names the one added file, so it needed no
   file list addition.
+
+### T5 — Merge interface and default implementation folders
+
+- The `BrightnessMappingCurve`/`HysteresisGate` merges named in this task were already delivered by T3
+  (blocker fix, commit `ed38782`), so only the `ReadingStabiliser` merge was left and executed here.
+- Move (`git mv`, history preserved): `core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/OutlierClampingStabiliser/OutlierClampingStabiliser.kt`
+  → `core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/ReadingStabiliser/OutlierClampingStabiliser.kt`;
+  the emptied `OutlierClampingStabiliser/` directory was deleted. `ReadingStabiliser/` now contains
+  `ReadingStabiliser.kt` + `OutlierClampingStabiliser.kt` (interface and its default implementation
+  share the folder, same pattern as `BrightnessMappingCurve/`/`HysteresisGate/`).
+- New package: `com.ambientbrightness.core.AmbientLightSensing.OutlierClampingStabiliser` →
+  `com.ambientbrightness.core.AmbientLightSensing.ReadingStabiliser` (it takes over the interface's
+  package). The class name stays `OutlierClampingStabiliser`; `ReadingStabiliser.kt` was not touched.
+  The import of `ReadingStabiliser` inside the moved file became a same-package self-import and was
+  dropped (same shape as T3's `DefaultBrightnessMappingCurve`/`DefaultHysteresisGate` cleanup) — the
+  only other change in that file is the `package` line.
+- Import sites rewritten (import lines only): `app/src/main/kotlin/com/ambientbrightness/app/AmbientBrightnessComponent/AmbientBrightnessComponent.kt`
+  and `core/src/test/kotlin/com/ambientbrightness/core/OutlierClampingStabiliser/OutlierClampingStabiliserTest.kt`
+  (the test keeps its own folder/package `com.ambientbrightness.core.OutlierClampingStabiliser`; only
+  its import of the production class changed). No file in `infrastructure/src/main/**`,
+  `infrastructure/src/test/**`, `infrastructure/src/androidTest/**` or `app/src/androidTest/**`
+  referenced the type, verified with `git grep -n "AmbientLightSensing.OutlierClampingStabiliser"`.
+- Docs (paths only): `docs/feature-ambient-light-sensing.md` — the T3 `Files added:` list entry
+  `AmbientLightSensing/{OutlierClampingStabiliser/OutlierClampingStabiliser,…}` became
+  `AmbientLightSensing/{ReadingStabiliser/OutlierClampingStabiliser,…}`; its `:core/src/test/.../`
+  entry needed no change because the test layout is untouched. `docs/feature-automatic-brightness-control.md`
+  (the file the checklist names) carries no `ReadingStabiliser/` or `OutlierClampingStabiliser/` path
+  after T3 — verified with `git grep -n "ReadingStabiliser/\|OutlierClampingStabiliser/" -- docs` — so
+  it needed no edit; `docs/feature-response-tuning.md` mentions the type by name only. The historical
+  path list in the T3 entry above is left as the T3 record (this task touches no other task section),
+  so T10's path sweep must treat it as history, not as a live path.
+- Verification (all green): `.\gradlew.bat --console=plain :core:test :infrastructure:test :app:assembleDebug :infrastructure:compileDebugAndroidTestKotlin`
+  → `BUILD SUCCESSFUL in 3s`, `:core:test` **81 tests / 0 failures / 0 skipped** (16 classes),
+  `:infrastructure:test` **26 tests / 0 failures / 0 skipped** (6 classes), `app-debug.apk` produced.
+  Cache-busting run `.\gradlew.bat --console=plain --no-build-cache :core:clean :core:test` →
+  `BUILD SUCCESSFUL in 4s` with `:core:compileKotlin`, `:core:compileTestKotlin` and `:core:test`
+  all executed (81/0/0), so no incremental state hides a package/classifier error.
+- Structural checks performed (script over every `core/src/main/kotlin/com/ambientbrightness/core/**/*.kt`):
+  (1) every file's `package` line equals the package derived from its own folder — zero mismatches, so
+  no folder name differs from the type it defines except the intended shared folders
+  (`ReadingStabiliser/`, `BrightnessMappingCurve/`, `HysteresisGate/`, plus the pre-existing
+  `AmbientLightService/`, `LightLevel/` and the flat T4 contract files) — and the T2
+  `ArchitectureStructureTest` stays green unmodified; (2) for every package the simple name of its last
+  segment was compared with the classifiers declared in its parent package: **no collision**, i.e. no
+  package's FQ name equals the FQ name of a classifier in its parent package and nothing named
+  `ReadingStabiliser` exists in `com.ambientbrightness.core.AmbientLightSensing`.
+- No signature, visibility, KDoc, behaviour or formatting change; one commit for the move, the two
+  import fixes and the doc path. Working tree clean afterwards.
 

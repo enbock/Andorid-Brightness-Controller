@@ -366,7 +366,7 @@ Hypervisor Driver (AEHD) is still downloaded but not installed; it is not needed
   *Defaults actually used: `DEFAULT_SAMPLING_INTERVAL_MILLIS = 500L`; `OutlierClampingStabiliser`
   `outlierFactor = 3f`, `minOutlierDeltaLux = 20f`, `consecutiveRejectionsBeforeAccept = 3`.*
   *Files added: `:core/src/main/kotlin/com/ambientbrightness/core/Shared/Clock.kt`,
-  `:core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/{OutlierClampingStabiliser/OutlierClampingStabiliser,AmbientLightUseCase/AmbientLightUseCase}.kt`,
+  `:core/src/main/kotlin/com/ambientbrightness/core/AmbientLightSensing/{ReadingStabiliser/OutlierClampingStabiliser,AmbientLightUseCase/AmbientLightUseCase}.kt`,
   `:core/src/test/kotlin/com/ambientbrightness/core/{OutlierClampingStabiliser/OutlierClampingStabiliserTest,AmbientLightUseCase/AmbientLightUseCaseTest}.kt`,
   `:core/src/test/kotlin/com/ambientbrightness/core/testdoubles/{FakeClock,FakeAmbientLightSensorClient,FakeReadingStabiliser}.kt`;
   changed `:core/build.gradle.kts` (`testImplementation(libs.kotlinx.coroutines.test)`).*
