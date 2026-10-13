@@ -624,3 +624,33 @@ the `stateIn` upstream never completes, the test must collect under `backgroundS
 - Feature status: T1–T5 are complete, so every user story of F4 has a verified implementation.
   AC1.1/1.3/1.4 are covered by T3's and T5's tests, AC2.1–2.3 by T4's and T5's, AC3.1–3.3 by T3's and
   T5's, and AC4.1/4.2 by T2's and T5's.
+
+### Review corrections (post-implementation)
+
+*Fix commit `585035738bcd324fb0d077c99aa8795a70cf3798` (after T5; addresses T3 and T4).*
+
+- **T3 — the debounce window is armed once, not re-seeded.** The first implementation restarted the
+  window whenever two consecutive accepted readings differed by more than the noise band, and that band
+  belongs to the level *in effect*. For a large step the band is therefore a tiny fraction of the new
+  reading, so ordinary jitter (10 lx on a 20 000 lx reading, or a monotone drift while the light keeps
+  moving) re-armed the window on every sample and the adjustment never started — AC3.2 was
+  unreachable in exactly the situations F4 exists for. Now the window starts when a reading first
+  leaves the band of the level in effect, keeps running while readings stay outside it (the target
+  follows the latest accepted reading), and is cleared only when a reading returns inside that band.
+  The transient case of AC3.1 is unchanged: a change that goes back to the previous level is still
+  dropped entirely. New tests: a jittered sustained change is applied, a monotone moving change is
+  applied and followed, and a level that returns inside the band is still dropped.
+- **T4 — the ramp re-syncs its baseline with the brightness actually applied.** The first
+  implementation consulted `BrightnessContext.currentBrightness` only on its very first invocation
+  ever, so after a controller restart (F2 resets its dead-band, the app keeps one ramp) or while
+  writes were suspended (`writesSuspended`, which keeps the pipeline and therefore the ramp advancing)
+  `currentFraction` was stale and the accumulated difference could be emitted as a single jump. The
+  applied value now wins whenever it disagrees with the remembered fraction by more than the step
+  about to be taken; normal progress stays far below that bound because F2 only suppresses
+  sub-device-unit writes, so the guard never fires mid-ramp. New test: a remembered fraction that
+  disagrees with the applied brightness steps down instead of jumping to the target.
+- Verification after the corrections (from the repo root, `--no-daemon --console=plain`):
+  `.\gradlew.bat :core:test` → BUILD SUCCESSFUL, 24 classes / 140 tests, 0 failures (136 before the
+  corrections: +4 tests); `.\gradlew.bat :infrastructure:test` → 8 classes / 32 tests, 0 failures;
+  `.\gradlew.bat :app:testDebugUnitTest` → 1 class / 3 tests, 0 failures; `.\gradlew.bat
+  :app:assembleDebug`, `.\gradlew.bat :app:assembleDebugAndroidTest` → BUILD SUCCESSFUL.
