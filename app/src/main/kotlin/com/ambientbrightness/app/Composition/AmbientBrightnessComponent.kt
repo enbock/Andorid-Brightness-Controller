@@ -16,6 +16,7 @@ import com.ambientbrightness.core.AutomaticBrightnessControl.SystemBrightnessCli
 import com.ambientbrightness.core.AutomaticBrightnessControl.WriteSettingsPermissionChecker
 import com.ambientbrightness.core.ResponseTuning.ResponseTuningService.DefaultResponseTuningService
 import com.ambientbrightness.core.ResponseTuning.ResponseTuningService.ResponseTuningService
+import com.ambientbrightness.core.ResponsiveBrightnessRamp.ResponsiveBrightnessRamp
 import com.ambientbrightness.core.SettingsStore.SettingsStore
 import com.ambientbrightness.core.Shared.Clock
 import com.ambientbrightness.core.Shared.SystemClock
@@ -61,6 +62,11 @@ class AmbientBrightnessComponent(
         scope = controllerScope,
     )
 
+    private val ramp = ResponsiveBrightnessRamp(
+        responseSpeed = responseTuningService.responseSpeed,
+        clock = clock,
+    )
+
     private val useCase = AmbientLightUseCase(
         sensorClient = sensorClient,
         stabiliser = UserConfigurableStabiliser(
@@ -84,9 +90,10 @@ class AmbientBrightnessComponent(
     /**
      * Automatic brightness controller (F2). It is started by whoever owns the control loop's
      * lifetime (the F5 background service); the activity never starts it, because F1's collector
-     * above is the only other consumer of the single ambient-light stream.
+     * above is the only other consumer of the single ambient-light stream. F4's ramp is registered
+     * as a transform hook, so it sits between the mapping curve and F2's clamping and dead-band.
      */
-    val controller: AutomaticBrightnessController = BrightnessControllerUseCase(
+    private val brightnessController = BrightnessControllerUseCase(
         ambientLightService = service,
         screenStateClient = screenStateClient,
         brightnessClient = brightnessClient,
@@ -94,7 +101,9 @@ class AmbientBrightnessComponent(
         permissionChecker = writeSettingsPermissionChecker,
         builtInAdaptiveBrightnessClient = builtInAdaptiveBrightnessClient,
         scope = controllerScope,
-    )
+    ).also { it.registerTransform(ramp) }
+
+    val controller: AutomaticBrightnessController = brightnessController
 
     val statusCollector = BrightnessStatusCollector(controller)
 
