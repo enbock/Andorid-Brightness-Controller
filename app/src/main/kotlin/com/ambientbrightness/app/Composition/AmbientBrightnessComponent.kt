@@ -14,8 +14,12 @@ import com.ambientbrightness.core.AutomaticBrightnessControl.BuiltInAdaptiveBrig
 import com.ambientbrightness.core.AutomaticBrightnessControl.DeviceBrightnessRangeClient
 import com.ambientbrightness.core.AutomaticBrightnessControl.SystemBrightnessClient
 import com.ambientbrightness.core.AutomaticBrightnessControl.WriteSettingsPermissionChecker
+import com.ambientbrightness.core.ResponseTuning.ResponseTuningService.DefaultResponseTuningService
+import com.ambientbrightness.core.ResponseTuning.ResponseTuningService.ResponseTuningService
 import com.ambientbrightness.core.SettingsStore.SettingsStore
+import com.ambientbrightness.core.Shared.Clock
 import com.ambientbrightness.core.Shared.SystemClock
+import com.ambientbrightness.core.UserConfigurableStabiliser.UserConfigurableStabiliser
 import com.ambientbrightness.infrastructure.SettingsStore.SettingsStore.InMemory.InMemorySettingsStore
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.BuiltInAdaptiveBrightnessClient.Dummy.DummyBuiltInAdaptiveBrightnessClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Dummy.DummyDeviceBrightnessRangeClient
@@ -27,8 +31,9 @@ import kotlinx.coroutines.CoroutineScope
  * App-scoped manual composition root for ambient sensing and automatic brightness control. Its
  * client parameters also let tests exercise the same controller boundaries with deterministic
  * clients instead of device sensors and settings. The brightness clients default to the
- * deterministic Dummy adapters, and [settingsStore] to the in-memory store, so the app stays
- * runnable without a device; the Application passes the persistent DataStore-backed store instead.
+ * deterministic Dummy adapters, [settingsStore] to the in-memory store and [clock] to the system
+ * clock, so the app stays runnable without a device; the Application passes the persistent
+ * DataStore-backed store instead.
  */
 class AmbientBrightnessComponent(
     sensorClient: AmbientLightSensorClient,
@@ -41,6 +46,7 @@ class AmbientBrightnessComponent(
     builtInAdaptiveBrightnessClient: BuiltInAdaptiveBrightnessClient =
         DummyBuiltInAdaptiveBrightnessClient(),
     val settingsStore: SettingsStore = InMemorySettingsStore(),
+    clock: Clock = SystemClock,
 ) {
 
     private val sensorRangeLux = (sensorClient.availability as? SensorAvailability.Available)
@@ -49,10 +55,20 @@ class AmbientBrightnessComponent(
         ?.takeIf { it.isFinite() && it > 0f }
         ?: DEFAULT_FALLBACK_MAX_RANGE_LUX
 
+    /** Response speed (F4): the setting the settings UI and F7 read and write. */
+    val responseTuningService: ResponseTuningService = DefaultResponseTuningService(
+        store = settingsStore,
+        scope = controllerScope,
+    )
+
     private val useCase = AmbientLightUseCase(
         sensorClient = sensorClient,
-        stabiliser = OutlierClampingStabiliser(maxRangeLux = sensorRangeLux),
-        clock = SystemClock,
+        stabiliser = UserConfigurableStabiliser(
+            delegate = OutlierClampingStabiliser(maxRangeLux = sensorRangeLux),
+            responseSpeed = responseTuningService.responseSpeed,
+            clock = clock,
+        ),
+        clock = clock,
     )
 
     private val service = DefaultAmbientLightService(
