@@ -64,14 +64,14 @@ class UserConfigurableStabiliser(
             return accepted.copy(lux = current)
         }
 
-        val candidate = candidateLux
-        if (candidate == null || abs(acceptedLux - candidate) > noiseBand) {
-            candidateLux = acceptedLux
+        // The window is armed once, when the reading first leaves the band of the level in effect, and
+        // only a return into that band clears it. Re-arming on every further move would restart the
+        // window indefinitely: the band belongs to the *old* level, so it is a tiny fraction of a much
+        // brighter or darker reading and ordinary jitter or a monotone drift would keep re-seeding it.
+        if (candidateLux == null) {
             candidateSinceMillis = nowMillis
-            lastCallMillis = nowMillis
-            return accepted.copy(lux = current)
         }
-
+        candidateLux = acceptedLux
         val profile = resolver.resolve(responseSpeed.value)
         if (nowMillis - candidateSinceMillis < profile.debounceWindowMillis) {
             lastCallMillis = nowMillis

@@ -139,6 +139,19 @@ class ResponsiveBrightnessRampTest {
     }
 
     @Test
+    fun `a remembered fraction that disagrees with the applied brightness is re-synced, not jumped`() {
+        val subject = ramp()
+        subject.step(1f, afterMillis = 0L, appliedBrightness = BrightnessValue(1))
+
+        // The controller restarted and the system brightness is now near the top while the target is at
+        // the bottom: the ramp must step down from what is really applied instead of writing the target.
+        val afterRestart = subject.step(0f, afterMillis = 50L, appliedBrightness = BrightnessValue(101))
+
+        assertEquals(1f - 50f / 1_650f, afterRestart, EPSILON)
+        assertEquals(1f - 50f / 1_650f, subject.currentFraction!!, EPSILON)
+    }
+
+    @Test
     fun `a non-finite fraction is passed through instead of ramped`() {
         val subject = ramp()
 

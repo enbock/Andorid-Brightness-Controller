@@ -81,6 +81,46 @@ class UserConfigurableStabiliserTest {
     }
 
     @Test
+    fun `AC3_2 - a sustained change with sensor jitter is still applied`() {
+        val subject = stabiliser()
+        assertEquals(100f, subject.feed(100f, afterMillis = 0L))
+        assertEquals(100f, subject.feed(100f))
+
+        val armed = subject.feed(20_010f)
+        val afterWindow = subject.feed(20_000f)
+
+        assertEquals(100f, armed!!, "the first sighting must be held")
+        // 10 lx of jitter on a 20 000 lx reading is far below the band of the old 100 lx level, so the
+        // window must keep running instead of being restarted by the jitter.
+        assertTrue(afterWindow!! > 100f, "the sustained change must start: $afterWindow")
+    }
+
+    @Test
+    fun `AC3_2 - a monotone moving change is applied once its window elapsed`() {
+        val subject = stabiliser()
+        assertEquals(100f, subject.feed(100f, afterMillis = 0L))
+        assertEquals(100f, subject.feed(100f))
+
+        val firstSighting = subject.feed(120f)!!
+
+        assertEquals(100f, firstSighting, "the window must start on the first sighting")
+
+        val moving = (1..4).map { subject.feed(120f + it * 20f)!! }
+
+        assertEquals(moving.sorted(), moving, "the value must keep following the moving light: $moving")
+        assertTrue(moving.last() > 100f, "the light must be followed, not frozen: $moving")
+    }
+
+    @Test
+    fun `a sustained change shorter than the window is still dropped when the level returns`() {
+        val subject = stabiliser()
+        subject.feed(100f, afterMillis = 0L)
+        subject.feed(20_000f)
+
+        assertEquals(100f, subject.feed(100f))
+    }
+
+    @Test
     fun `AC3_3 - small alternating readings around a stable average are no change`() {
         val subject = stabiliser()
 

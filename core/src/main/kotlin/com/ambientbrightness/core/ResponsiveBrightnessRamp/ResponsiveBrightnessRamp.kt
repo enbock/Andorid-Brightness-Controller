@@ -53,26 +53,36 @@ class ResponsiveBrightnessRamp(
 
         val nowMillis = clock.nowMillis()
         targetFraction = fraction
-
-        val baseline = currentFraction ?: fractionOf(context.currentBrightness, context.range)
-        if (baseline == null) {
-            currentFraction = fraction
-            lastCallMillis = nowMillis
-            return fraction
-        }
-
         val profile = resolver.resolve(responseSpeed.value)
         val step = allowedStep(
             elapsedMillis = (nowMillis - (lastCallMillis ?: nowMillis)).coerceAtLeast(0L),
             profile = profile,
             range = context.range,
         )
-        val remaining = fraction - baseline
-        val applied = if (abs(remaining) <= step) fraction else baseline + step * sign(remaining)
 
-        currentFraction = applied
+        val remembered = currentFraction
+        val applied = fractionOf(context.currentBrightness, context.range)
+        // The applied value wins whenever it disagrees with what the ramp remembers, so a restart, a
+        // suspended write or a change made while the controller was stopped cannot turn the whole
+        // accumulated difference into one jump. Ordinary progress stays below the step that would be
+        // taken, because F2 only suppresses sub-device-unit writes.
+        val baseline = when {
+            remembered == null -> applied
+            applied != null && abs(applied - remembered) > step -> applied
+            else -> remembered
+        }
+        if (baseline == null) {
+            currentFraction = fraction
+            lastCallMillis = nowMillis
+            return fraction
+        }
+
+        val remaining = fraction - baseline
+        val nextFraction = if (abs(remaining) <= step) fraction else baseline + step * sign(remaining)
+
+        currentFraction = nextFraction
         lastCallMillis = nowMillis
-        return applied
+        return nextFraction
     }
 
     /**
