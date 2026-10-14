@@ -230,7 +230,7 @@ interface BatteryOptimizationClient { val isExempt: Flow<Boolean>; fun requestEx
   *Verify: fake-driven tests for AC3.1–3.3, double start/stop, restore ordering; AC3.4 maps F2
   `Failed` to `Failed(reason)` without throwing. Depends on F2 exposing the snapshot accessor.*
   *Depends on: T1.*
-- [ ] **T4 — Android foreground service, notification and manifest**: implement
+- [x] **T4 — Android foreground service, notification and manifest**: implement
   `ForegroundBrightnessService`, `AndroidBrightnessNotificationFactory` and the manifest entries
   (`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`, `POST_NOTIFICATIONS`,
   `foregroundServiceType="specialUse"` + subtype `<property>`, notification channel). Handle a `null`
@@ -385,3 +385,65 @@ restore has one external dependency (F2's `BrightnessSnapshot` accessor) — unb
   → **BUILD SUCCESSFUL**, 31 test classes / 201 tests, 0 failures, 0 errors, 0 skipped
   (`StopBrightnessRestorerTest` adds 3 tests and `BackgroundServiceUseCaseTest` adds 8). `:core` gained
   **no** `android.`/`androidx.datastore` import.
+
+### T4 — Android foreground service, notification and manifest
+
+*Done: implementation commit `704485d817d11890a5745be3f2622525b0350850`.*
+
+- Added the only Android `Service` in the project,
+  `ForegroundBrightnessService : Service(), ForegroundServiceHost`
+  (`:infrastructure/.../BackgroundService/ForegroundServiceHost/`). It is the platform host for T3's
+  `BackgroundServiceUseCase`, so `:core` keeps driving the notification through the
+  `ForegroundServiceHost` interface and never touches Android:
+  - `onCreate` creates one `NotificationChannel` (`AndroidBrightnessNotificationFactory.CHANNEL_ID`)
+    at `IMPORTANCE_LOW` (no sound/vibration); updates reuse one stable id
+    (`AndroidBrightnessNotificationFactory.NOTIFICATION_ID`).
+  - `onStartCommand` promotes the service with
+    `ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)`
+    promptly — for a `null` restart intent (`START_STICKY` after a system kill) it falls back to T2's
+    `BackgroundNotificationBuilder.build(BackgroundServiceState.Starting)` content instead of a
+    duplicated string — and returns `START_STICKY`.
+  - `startForeground(content)` / `updateNotification(content)` / `stopForeground()` are the interface
+    methods the use case calls; `updateNotification` posts only when already in the foreground and
+    tolerates a denied `POST_NOTIFICATIONS` (`NotificationManagerCompat.areNotificationsEnabled()`
+    guard plus a `SecurityException` guard), so the FGS still runs and nothing crashes (API 36 spec:
+    the service does not need the permission to start, only to show the notice).
+  - `onBind` returns a `LocalBinder` exposing the instance, which is how the composition root (T6) and
+    the instrumented test obtain the `ForegroundServiceHost` without constructing the framework-owned
+    service.
+- Added `AndroidBrightnessNotificationFactory` (`.../BackgroundService/AndroidBrightnessNotificationFactory/`):
+  `BackgroundNotificationContent` → `NotificationCompat` with `setOngoing(content.ongoing)`,
+  `setAutoCancel(false)`, a content intent that opens the app's launcher activity
+  (`PackageManager.getLaunchIntentForPackage` → `MainActivity`, resolved without an `:app` import,
+  which the dependency rule forbids), and exactly one **Stop** action when `content.showStopAction`.
+- **Stop action path:** the Stop action is a `PendingIntent.getService` carrying
+  `ForegroundBrightnessService.ACTION_STOP`. Tapping it re-enters `onStartCommand(ACTION_STOP)`,
+  which calls `stopRequestListener` — a seam set by the composition root (T6) to
+  `BrightnessBackgroundService.stop()` — so the command reaches `BackgroundServiceUseCase.stop()`
+  (F2 stop → snapshot restore → `host.stopForeground()`, which removes the notification and calls
+  `stopSelf()`). When the listener is not wired (dev), the service stops itself without restoring.
+- Added `DummyForegroundServiceHost` (same `ForegroundServiceHost/` folder) so `:app` can compose the
+  lifecycle without a device; it tracks the current content and foreground flag in memory.
+- Manifest (`app/src/main/AndroidManifest.xml`): added `FOREGROUND_SERVICE`,
+  `FOREGROUND_SERVICE_SPECIAL_USE` and `POST_NOTIFICATIONS`, and declared
+  `ForegroundBrightnessService` with `android:exported="false"` and
+  `android:foregroundServiceType="specialUse"` plus the
+  `android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE` `<property>` child (value
+  "ambient light based screen brightness control"), per *Android Platform Specifics*. Verified in the
+  merged manifest of `:app:assembleDebug`.
+- Added the instrumented test
+  `infrastructure/src/androidTest/kotlin/com/ambientbrightness/infrastructure/ForegroundBrightnessServiceTest.kt`
+  (JUnit 4 / `AndroidJUnit4`): starts the service, binds through the `LocalBinder`, asserts
+  `isInForeground`, asserts the built notification is `FLAG_ONGOING_EVENT`, is not
+  `FLAG_AUTO_CANCEL` and carries exactly one "Stop" action, and (when notifications are visible)
+  asserts the same on the posted notification. Device-dependent assertions use `assumeTrue`, matching
+  the module's existing smoke tests; here it only has to compile.
+- `:infrastructure` gained `implementation(libs.androidx.core.ktx)` (for `NotificationCompat`,
+  `ServiceCompat`, `ContextCompat`, `NotificationManagerCompat`); the instrumented test deliberately
+  uses only platform APIs so it does not depend on the androidx test classpath. No `:core` change:
+  T1's `BackgroundNotificationContent`/`ForegroundServiceHost` and T2's builder were consumed as-is.
+- Verification (from the repo root):
+  `$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot'` then
+  `.\gradlew.bat :infrastructure:test :infrastructure:assembleDebugAndroidTest :app:assembleDebug --no-daemon --console=plain`
+  → **BUILD SUCCESSFUL** (92 actionable tasks); `:infrastructure` unit tests 8 classes / 32 tests,
+  0 failures; `:infrastructure:assembleDebugAndroidTest` and `:app:assembleDebug` compile/link.
