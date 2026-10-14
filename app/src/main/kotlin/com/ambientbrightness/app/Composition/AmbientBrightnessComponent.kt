@@ -3,12 +3,16 @@ package com.ambientbrightness.app.Composition
 import com.ambientbrightness.app.AmbientLightSensing.Collector.AmbientLightCollector
 import com.ambientbrightness.app.AutomaticBrightnessControl.Collector.BrightnessStatusCollector
 import com.ambientbrightness.app.BackgroundService.Collector.BrightnessServiceCollector
+import com.ambientbrightness.app.SetupFlow.Collector.SetupFlowCollector
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightService.DefaultAmbientLightService
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightUseCase.AmbientLightUseCase
 import com.ambientbrightness.core.AmbientLightSensing.ReadingStabiliser.OutlierClampingStabiliser
 import com.ambientbrightness.core.AmbientLightSensing.ScreenStateClient
 import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
+import com.ambientbrightness.core.AppSetupService.AppSetupService
+import com.ambientbrightness.core.AppSetupService.NotificationPermissionChecker
+import com.ambientbrightness.core.AppSetupService.SetupStateStore
 import com.ambientbrightness.core.AutomaticBrightnessControl.AutomaticBrightnessController
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessControllerUseCase.BrightnessControllerUseCase
 import com.ambientbrightness.core.AutomaticBrightnessControl.BuiltInAdaptiveBrightnessClient
@@ -27,6 +31,7 @@ import com.ambientbrightness.core.BrightnessOffsetTransform.BrightnessOffsetTran
 import com.ambientbrightness.core.ResponseTuning.ResponseTuningService.DefaultResponseTuningService
 import com.ambientbrightness.core.ResponseTuning.ResponseTuningService.ResponseTuningService
 import com.ambientbrightness.core.ResponsiveBrightnessRamp.ResponsiveBrightnessRamp
+import com.ambientbrightness.core.SetupRequirementAggregator.SetupRequirementAggregator
 import com.ambientbrightness.core.SettingsStore.SettingsStore
 import com.ambientbrightness.core.Shared.Clock
 import com.ambientbrightness.core.Shared.SystemClock
@@ -39,6 +44,8 @@ import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.SystemBri
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.WriteSettingsPermissionChecker.Dummy.DummyWriteSettingsPermissionChecker
 import com.ambientbrightness.infrastructure.BackgroundService.BatteryOptimizationClient.Dummy.DummyBatteryOptimizationClient
 import com.ambientbrightness.infrastructure.BackgroundService.ControllerStateStore.Dummy.DummyControllerStateStore
+import com.ambientbrightness.infrastructure.AppSetupService.NotificationPermissionChecker.Dummy.DummyNotificationPermissionChecker
+import com.ambientbrightness.infrastructure.AppSetupService.SetupStateStore.Dummy.DummySetupStateStore
 import com.ambientbrightness.infrastructure.BackgroundService.ForegroundServiceHost.DummyForegroundServiceHost
 import kotlinx.coroutines.CoroutineScope
 
@@ -66,6 +73,9 @@ class AmbientBrightnessComponent(
     foregroundServiceHost: ForegroundServiceHost = DummyForegroundServiceHost(),
     controllerStateStore: ControllerStateStore = DummyControllerStateStore(),
     batteryOptimizationClient: BatteryOptimizationClient = DummyBatteryOptimizationClient(),
+    notificationPermissionChecker: NotificationPermissionChecker =
+        DummyNotificationPermissionChecker(),
+    setupStateStore: SetupStateStore = DummySetupStateStore(),
 ) {
 
     private val sensorRangeLux = (sensorClient.availability as? SensorAvailability.Available)
@@ -168,6 +178,24 @@ class AmbientBrightnessComponent(
 
     /** Thin forwarder of F5's state and battery-optimization exemption for F6/F7. */
     val backgroundServiceCollector = BrightnessServiceCollector(backgroundService)
+
+    /**
+     * Setup flow (F6): aggregates the sensor, `WRITE_SETTINGS`, notification and battery-optimization
+     * sources into the checklist status and the Start gate F7 consumes. The aggregator never caches a
+     * requirement, so a resume re-derives every one of them (US2, AC2.4).
+     */
+    val setupService: AppSetupService = SetupRequirementAggregator(
+        ambientLightService = service,
+        writeSettingsPermissionChecker = writeSettingsPermissionChecker,
+        batteryOptimizationClient = batteryOptimizationClient,
+        notificationPermissionChecker = notificationPermissionChecker,
+        stateStore = setupStateStore,
+        scope = controllerScope,
+        clock = clock,
+    )
+
+    /** Thin forwarder of F6's setup status and Start gate for F7. */
+    val setupFlowCollector = SetupFlowCollector(setupService)
 
     /** Immediately cancels service collection and unregisters any active sensor listener. */
     fun stop() {

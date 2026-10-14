@@ -6,6 +6,8 @@ import android.hardware.display.DisplayManager
 import android.os.PowerManager
 import com.ambientbrightness.infrastructure.AmbientLightSensing.AmbientLightSensorClient.Android.AndroidAmbientLightSensorClient
 import com.ambientbrightness.infrastructure.AmbientLightSensing.ScreenStateClient.Android.AndroidScreenStateClient
+import com.ambientbrightness.infrastructure.AppSetupService.NotificationPermissionChecker.Android.AndroidNotificationPermissionChecker
+import com.ambientbrightness.infrastructure.AppSetupService.SetupStateStore.Android.AndroidSetupStateStore
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.BuiltInAdaptiveBrightnessClient.Android.AndroidBuiltInAdaptiveBrightnessClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Android.AndroidDeviceBrightnessRangeClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.SystemBrightnessClient.Android.AndroidSystemBrightnessClient
@@ -48,6 +50,8 @@ class AmbientBrightnessApplication : Application() {
             foregroundServiceHost = foregroundServiceHost,
             controllerStateStore = AndroidControllerStateStore(this),
             batteryOptimizationClient = AndroidBatteryOptimizationClient.create(this),
+            notificationPermissionChecker = AndroidNotificationPermissionChecker.create(this),
+            setupStateStore = AndroidSetupStateStore(this),
         )
 
         // The notification's Stop action reaches the service; forward it to the use case so it
