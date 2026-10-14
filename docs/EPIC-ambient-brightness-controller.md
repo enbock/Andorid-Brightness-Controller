@@ -143,11 +143,7 @@ to change brightness, and confirmation that stopping really stops all changes.*
 - **Commit messages follow Conventional Commits:** `<type>(<scope>): <summary>`, where `<scope>` is
   the feature slug or module (`build`, `core`, `sensor`, `brightness`, `offset`, `tuning`,
   `service`, `setup`, `ui`). The body lists what changed, the task ID, and the exact verification
-  command that was run. Footer:
-
-  ```
-  Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-  ```
+  command that was run.
 
 - **Task progress is recorded in the feature document**, not only in the commit: flip the task from
   `- [ ]` to `- [x]` and append a short `*Done:` note with the commit SHA and the verification
