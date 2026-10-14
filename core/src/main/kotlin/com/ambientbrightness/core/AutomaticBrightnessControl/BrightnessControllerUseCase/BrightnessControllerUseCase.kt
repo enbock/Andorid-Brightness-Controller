@@ -24,6 +24,7 @@ import com.ambientbrightness.core.AutomaticBrightnessControl.HysteresisGate.Hyst
 import com.ambientbrightness.core.AutomaticBrightnessControl.MinimumStepDeadBand.MinimumStepDeadBand
 import com.ambientbrightness.core.AutomaticBrightnessControl.SystemBrightnessClient
 import com.ambientbrightness.core.AutomaticBrightnessControl.WriteSettingsPermissionChecker
+import com.ambientbrightness.core.BrightnessOffsetService.BrightnessOffsetSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -75,6 +77,14 @@ class BrightnessControllerUseCase(
     @Volatile
     private var collectionJob: Job? = null
 
+    /** Observation of the manual offset (F3); owned by this controller for its running lifetime. */
+    @Volatile
+    private var offsetCollectionJob: Job? = null
+
+    /** Source of manual-offset changes; set by the composition root, observed between start/stop. */
+    @Volatile
+    private var offsetSource: BrightnessOffsetSource? = null
+
     @Volatile
     private var writesSuspended = false
 
@@ -104,18 +114,24 @@ class BrightnessControllerUseCase(
             )
             mutableConflict.value = conflictDetector.detect()
             collectionJob = scope.launch { controlLoop() }
+            offsetCollectionJob = offsetSource?.let { source ->
+                scope.launch { source.offset.drop(1).collect { reapply() } }
+            }
         }
     }
 
     /** Idempotent. Stops writing immediately and releases the ambient-light stream. */
     override fun stop() {
-        val runningJob = synchronized(lifecycleLock) {
+        val runningJobs = synchronized(lifecycleLock) {
             val job = collectionJob ?: return
+            val offsetJob = offsetCollectionJob
             collectionJob = null
-            job
+            offsetCollectionJob = null
+            job to offsetJob
         }
 
-        runningJob.cancel()
+        runningJobs.first.cancel()
+        runningJobs.second?.cancel()
         ambientLightService.stop()
         mutableStatus.update { it.copy(isRunning = false) }
     }
@@ -126,6 +142,22 @@ class BrightnessControllerUseCase(
      */
     fun registerTransform(transform: BrightnessTransform) {
         pipeline.register(transform)
+    }
+
+    /**
+     * Registers the manual-offset source (F3) to re-apply against. A change to
+     * [BrightnessOffsetSource.offset] calls [reapply], so it is applied within 1 s using the last
+     * accepted reading, without waiting for a new ambient sample (AC1.1); before any reading has
+     * been accepted [reapply] writes nothing and the stored offset applies on the first sample
+     * (AC1.2). The source is pushed in by the composition root, which owns it; this controller owns
+     * only the observation, launched in [start] and cancelled in [stop].
+     *
+     * Register the offset's [BrightnessTransform] before F4's ramp so the ramp governs how fast the
+     * offset is applied (F3 leaves the speed to F4). Register this source before [start] to have it
+     * observed from the first run.
+     */
+    fun registerOffsetSource(source: BrightnessOffsetSource) {
+        offsetSource = source
     }
 
     /**

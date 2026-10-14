@@ -21,6 +21,9 @@ import com.ambientbrightness.core.AutomaticBrightnessControl.DeviceBrightnessRan
 import com.ambientbrightness.core.AutomaticBrightnessControl.HysteresisGate.HysteresisGate
 import com.ambientbrightness.core.AutomaticBrightnessControl.SystemBrightnessClient
 import com.ambientbrightness.core.AutomaticBrightnessControl.WriteSettingsPermissionChecker
+import com.ambientbrightness.core.BrightnessOffset.BrightnessOffset
+import com.ambientbrightness.core.BrightnessOffset.BrightnessOffsetApplication
+import com.ambientbrightness.core.BrightnessOffsetService.BrightnessOffsetSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -113,6 +116,25 @@ internal class RecordingBrightnessTransform(
     override fun apply(fraction: Float, context: BrightnessContext): Float {
         contexts += context
         return fraction + offset
+    }
+}
+
+/**
+ * Controllable [BrightnessOffsetSource] (F3): [emit] publishes a new offset so a subject observing
+ * the source can be driven deterministically without a settings store.
+ */
+internal class FakeBrightnessOffsetSource(
+    initial: BrightnessOffset = BrightnessOffset.DEFAULT,
+) : BrightnessOffsetSource {
+
+    private val mutableOffset = MutableStateFlow(initial)
+    override val offset: StateFlow<BrightnessOffset> = mutableOffset
+
+    override val application: StateFlow<BrightnessOffsetApplication> =
+        MutableStateFlow(BrightnessOffsetApplication.NotEvaluated)
+
+    fun emit(offset: BrightnessOffset) {
+        mutableOffset.value = offset
     }
 }
 

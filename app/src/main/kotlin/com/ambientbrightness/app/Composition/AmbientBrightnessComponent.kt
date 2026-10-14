@@ -14,6 +14,9 @@ import com.ambientbrightness.core.AutomaticBrightnessControl.BuiltInAdaptiveBrig
 import com.ambientbrightness.core.AutomaticBrightnessControl.DeviceBrightnessRangeClient
 import com.ambientbrightness.core.AutomaticBrightnessControl.SystemBrightnessClient
 import com.ambientbrightness.core.AutomaticBrightnessControl.WriteSettingsPermissionChecker
+import com.ambientbrightness.core.BrightnessOffsetService.BrightnessOffsetService
+import com.ambientbrightness.core.BrightnessOffsetStateHolder.BrightnessOffsetStateHolder
+import com.ambientbrightness.core.BrightnessOffsetTransform.BrightnessOffsetTransform
 import com.ambientbrightness.core.ResponseTuning.ResponseTuningService.DefaultResponseTuningService
 import com.ambientbrightness.core.ResponseTuning.ResponseTuningService.ResponseTuningService
 import com.ambientbrightness.core.ResponsiveBrightnessRamp.ResponsiveBrightnessRamp
@@ -67,6 +70,24 @@ class AmbientBrightnessComponent(
         clock = clock,
     )
 
+    /** Manual brightness offset (F3): the setting the settings UI and F7 read and write. */
+    private val brightnessOffsetHolder = BrightnessOffsetStateHolder(
+        store = settingsStore,
+        scope = controllerScope,
+    )
+
+    /** Offset boundary (F7): the current offset and how far it could be applied. */
+    val brightnessOffsetService: BrightnessOffsetService = brightnessOffsetHolder
+
+    /**
+     * Offset transform (F3). The holder is both the read side and the clamp-indicator sink, so the
+     * running pipeline and the UI share the one offset state.
+     */
+    private val offsetTransform = BrightnessOffsetTransform(
+        offsetSource = brightnessOffsetHolder,
+        applicationSink = brightnessOffsetHolder,
+    )
+
     private val useCase = AmbientLightUseCase(
         sensorClient = sensorClient,
         stabiliser = UserConfigurableStabiliser(
@@ -90,8 +111,10 @@ class AmbientBrightnessComponent(
     /**
      * Automatic brightness controller (F2). It is started by whoever owns the control loop's
      * lifetime (the F5 background service); the activity never starts it, because F1's collector
-     * above is the only other consumer of the single ambient-light stream. F4's ramp is registered
-     * as a transform hook, so it sits between the mapping curve and F2's clamping and dead-band.
+     * above is the only other consumer of the single ambient-light stream. The transforms are
+     * registered in fold order: F3's offset shifts the mapped fraction first, then F4's ramp governs
+     * how fast that shift is applied (F3 leaves the speed to F4). The offset source is registered so
+     * a change re-applies within 1 s without a new sample (AC1.1).
      */
     private val brightnessController = BrightnessControllerUseCase(
         ambientLightService = service,
@@ -101,7 +124,11 @@ class AmbientBrightnessComponent(
         permissionChecker = writeSettingsPermissionChecker,
         builtInAdaptiveBrightnessClient = builtInAdaptiveBrightnessClient,
         scope = controllerScope,
-    ).also { it.registerTransform(ramp) }
+    ).also { controller ->
+        controller.registerTransform(offsetTransform)
+        controller.registerTransform(ramp)
+        controller.registerOffsetSource(brightnessOffsetHolder)
+    }
 
     val controller: AutomaticBrightnessController = brightnessController
 

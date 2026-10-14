@@ -9,13 +9,20 @@ import com.ambientbrightness.core.AmbientLightSensing.SensorUnavailableReason
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessControllerUseCase.BrightnessControllerUseCase
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessRange
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessSnapshot
+import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessTransform
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessValue
 import com.ambientbrightness.core.AutomaticBrightnessControl.BrightnessWriteResult
 import com.ambientbrightness.core.AutomaticBrightnessControl.BuiltInAdaptiveBrightnessState
+import com.ambientbrightness.core.BrightnessOffset.BrightnessOffset
+import com.ambientbrightness.core.BrightnessOffset.BrightnessOffsetApplication
+import com.ambientbrightness.core.BrightnessOffsetService.BrightnessOffsetSource
+import com.ambientbrightness.core.BrightnessOffsetService.OffsetApplicationSink
+import com.ambientbrightness.core.BrightnessOffsetTransform.BrightnessOffsetTransform
 import com.ambientbrightness.core.FakeAmbientLightSensorClient
 import com.ambientbrightness.core.FakeClock
 import com.ambientbrightness.core.testdoubles.FakeAmbientLightService
 import com.ambientbrightness.core.testdoubles.FakeBrightnessMappingCurve
+import com.ambientbrightness.core.testdoubles.FakeBrightnessOffsetSource
 import com.ambientbrightness.core.testdoubles.FakeBuiltInAdaptiveBrightnessClient
 import com.ambientbrightness.core.testdoubles.FakeDeviceBrightnessRangeClient
 import com.ambientbrightness.core.testdoubles.FakeHysteresisGate
@@ -369,6 +376,85 @@ class BrightnessControllerUseCaseTest {
     }
 
     @Test
+    fun `AC1_1 - an offset change while running re-applies using the last known lux`() = runTest {
+        val offsetSource = FakeBrightnessOffsetSource()
+        val fixture = Fixture(
+            scope = backgroundScope,
+            offsetSource = offsetSource,
+            transform = BrightnessOffsetTransform(offsetSource, NoOpOffsetApplicationSink),
+        )
+
+        fixture.controller.start()
+        runCurrent()
+        fixture.service.publish(50f)
+        runCurrent()
+        assertEquals(BrightnessValue(128), fixture.brightness.lastWrite)
+        val attemptsAfterSample = fixture.brightness.writeAttempts
+
+        // No new ambient-light sample arrives: the offset change alone must drive a re-apply.
+        offsetSource.emit(BrightnessOffset.of(50))
+        runCurrent()
+
+        assertEquals(attemptsAfterSample + 1, fixture.brightness.writeAttempts)
+        assertEquals(BrightnessValue(255), fixture.brightness.lastWrite)
+        assertEquals(50f, fixture.controller.status.value.lastLux)
+
+        fixture.controller.stop()
+        runCurrent()
+    }
+
+    @Test
+    fun `AC1_2 - an offset change before the first reading writes nothing and applies on the first sample`() =
+        runTest {
+            val offsetSource = FakeBrightnessOffsetSource()
+            val fixture = Fixture(
+                scope = backgroundScope,
+                offsetSource = offsetSource,
+                transform = BrightnessOffsetTransform(offsetSource, NoOpOffsetApplicationSink),
+            )
+
+            fixture.controller.start()
+            runCurrent()
+
+            offsetSource.emit(BrightnessOffset.of(30))
+            runCurrent()
+
+            assertEquals(0, fixture.brightness.writeAttempts)
+
+            fixture.service.publish(50f)
+            runCurrent()
+
+            // 0.5 fraction + 0.30 of the 1..255 span -> 1 + round(254 * 0.8) = 204.
+            assertEquals(BrightnessValue(204), fixture.brightness.lastWrite)
+
+            fixture.controller.stop()
+            runCurrent()
+        }
+
+    @Test
+    fun `stop cancels the offset observation so later changes are no longer applied`() = runTest {
+        val offsetSource = FakeBrightnessOffsetSource()
+        val fixture = Fixture(
+            scope = backgroundScope,
+            offsetSource = offsetSource,
+            transform = BrightnessOffsetTransform(offsetSource, NoOpOffsetApplicationSink),
+        )
+
+        fixture.controller.start()
+        runCurrent()
+        fixture.service.publish(50f)
+        runCurrent()
+        fixture.controller.stop()
+        runCurrent()
+
+        val attemptsAfterStop = fixture.brightness.writeAttempts
+        offsetSource.emit(BrightnessOffset.of(50))
+        runCurrent()
+
+        assertEquals(attemptsAfterStop, fixture.brightness.writeAttempts)
+    }
+
+    @Test
     fun `a raw sensor reading reaches the system brightness through the full F1 pipeline`() =
         runTest {
             val sensorProfile =
@@ -447,6 +533,8 @@ class BrightnessControllerUseCaseTest {
         adaptiveState: BuiltInAdaptiveBrightnessState = BuiltInAdaptiveBrightnessState.DISABLED,
         granted: Boolean = true,
         range: BrightnessRange? = BrightnessRange(BrightnessValue(1), BrightnessValue(255)),
+        offsetSource: BrightnessOffsetSource? = null,
+        transform: BrightnessTransform? = null,
     ) {
         val brightness = FakeSystemBrightnessClient(current = currentBrightness)
         val screen = FakeScreenStateClient(isScreenOn = screenOn)
@@ -464,6 +552,14 @@ class BrightnessControllerUseCaseTest {
             scope = scope,
             curve = FakeBrightnessMappingCurve(),
             hysteresisGate = FakeHysteresisGate(),
-        )
+        ).also { controller ->
+            transform?.let(controller::registerTransform)
+            offsetSource?.let(controller::registerOffsetSource)
+        }
     }
+}
+
+/** Offset sink that ignores publications; the controller tests only assert the applied value. */
+private object NoOpOffsetApplicationSink : OffsetApplicationSink {
+    override fun publish(application: BrightnessOffsetApplication) = Unit
 }
