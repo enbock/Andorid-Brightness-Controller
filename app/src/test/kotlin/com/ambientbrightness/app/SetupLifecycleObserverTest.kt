@@ -32,9 +32,17 @@ class SetupLifecycleObserverTest {
 
         override val isReadyToStart: StateFlow<Boolean> = MutableStateFlow(false)
 
+        override val setupAcknowledged: StateFlow<Boolean> = MutableStateFlow(false)
+
+        override val notificationWarning: StateFlow<Boolean> = MutableStateFlow(false)
+
         override fun refresh() {
             refreshCalls++
         }
+
+        override fun completeSetup() = Unit
+
+        override fun skipSetup() = Unit
 
         override fun acknowledgeSetup() = Unit
     }

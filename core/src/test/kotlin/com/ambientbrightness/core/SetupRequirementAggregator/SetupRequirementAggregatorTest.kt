@@ -11,10 +11,12 @@ import com.ambientbrightness.core.AppSetupService.SetupRequirement
 import com.ambientbrightness.core.AppSetupService.SetupRequirementId
 import com.ambientbrightness.core.AppSetupService.SetupStateStore
 import com.ambientbrightness.core.AppSetupService.UnsupportedReason
+import com.ambientbrightness.core.BackgroundService.BackgroundServiceState
 import com.ambientbrightness.core.FakeClock
 import com.ambientbrightness.core.Shared.Clock
 import com.ambientbrightness.core.testdoubles.FakeAmbientLightService
 import com.ambientbrightness.core.testdoubles.FakeBatteryOptimizationClient
+import com.ambientbrightness.core.testdoubles.FakeBrightnessBackgroundService
 import com.ambientbrightness.core.testdoubles.FakeNotificationPermissionChecker
 import com.ambientbrightness.core.testdoubles.FakeSetupStateStore
 import com.ambientbrightness.core.testdoubles.FakeWriteSettingsPermissionChecker
@@ -274,7 +276,55 @@ class SetupRequirementAggregatorTest {
     }
 
     @Test
-    fun `AC1_3 - acknowledging the setup persists the flag and the timestamp`() = runTest {
+    fun `AC1_3 - completing the setup persists the acknowledgement and exposes the flag`() = runTest {
+        val store = FakeSetupStateStore()
+        val clock = FakeClock(nowMillis = 1_700_000_000_000L)
+        val fixture = Fixture(backgroundScope, store = store, clock = clock)
+
+        assertFalse(fixture.aggregator.setupAcknowledged.value)
+
+        fixture.aggregator.completeSetup()
+
+        assertTrue(store.setupAcknowledged)
+        assertEquals(1_700_000_000_000L, store.lastShownAtMillis)
+        assertTrue(fixture.aggregator.setupAcknowledged.value)
+    }
+
+    @Test
+    fun `AC1_3 - skipping the setup persists the acknowledgement as well`() = runTest {
+        val store = FakeSetupStateStore()
+        val clock = FakeClock(nowMillis = 1_700_000_000_000L)
+        val fixture = Fixture(backgroundScope, store = store, clock = clock)
+
+        fixture.aggregator.skipSetup()
+
+        assertTrue(store.setupAcknowledged)
+        assertEquals(
+            1_700_000_000_000L,
+            store.lastShownAtMillis,
+            "skipping stores the same timestamp as completing",
+        )
+        assertTrue(fixture.aggregator.setupAcknowledged.value)
+    }
+
+    @Test
+    fun `AC1_3 - a fresh aggregator over the same store reports the persisted acknowledgement`() =
+        runTest {
+            val store = FakeSetupStateStore()
+            val first = Fixture(backgroundScope, store = store)
+            first.aggregator.completeSetup()
+
+            val second = Fixture(backgroundScope, store = store)
+            runCurrent()
+
+            assertTrue(
+                second.aggregator.setupAcknowledged.value,
+                "a new aggregator must seed the flag from the store",
+            )
+        }
+
+    @Test
+    fun `AC1_3 - acknowledgeSetup keeps persisting the flag and the timestamp`() = runTest {
         val store = FakeSetupStateStore()
         val clock = FakeClock(nowMillis = 1_700_000_000_000L)
         val fixture = Fixture(backgroundScope, store = store, clock = clock)
@@ -283,6 +333,143 @@ class SetupRequirementAggregatorTest {
 
         assertTrue(store.setupAcknowledged)
         assertEquals(1_700_000_000_000L, store.lastShownAtMillis)
+        assertTrue(fixture.aggregator.setupAcknowledged.value)
+    }
+
+    @Test
+    fun `AC3_1 - a missing blocking requirement is listed with its state and disables start`() =
+        runTest {
+            val fixture = Fixture(backgroundScope, writeSettingsGranted = false)
+            runCurrent()
+
+            val writeSettings =
+                fixture.aggregator.requirement(SetupRequirementId.WriteSettings)
+            assertEquals(RequirementState.Missing(MissingReason.NotGranted), writeSettings.state)
+            assertEquals(
+                4,
+                fixture.aggregator.status.value.requirements.size,
+                "every requirement must be listed separately",
+            )
+            assertFalse(fixture.aggregator.status.value.isReadyToStart)
+        }
+
+    @Test
+    fun `AC3_2 - the blockers name exactly the requirement that blocks the start`() = runTest {
+        val fixture = Fixture(backgroundScope, writeSettingsGranted = false)
+
+        runCurrent()
+
+        assertEquals(
+            listOf(SetupRequirementId.WriteSettings),
+            fixture.aggregator.status.value.blockers,
+        )
+        assertEquals(
+            SetupAction.OpenWriteSettings,
+            fixture.aggregator.requirement(SetupRequirementId.WriteSettings).action,
+        )
+    }
+
+    @Test
+    fun `AC3_3 - all requirements satisfied means the setup is complete and start is enabled`() =
+        runTest {
+            val fixture = Fixture(backgroundScope)
+
+            runCurrent()
+
+            assertTrue(
+                fixture.aggregator.status.value.isReadyToStart,
+                "all requirements satisfied must be ready to start",
+            )
+            assertEquals(emptyList<SetupRequirementId>(), fixture.aggregator.status.value.blockers)
+            assertTrue(fixture.aggregator.isReadyToStart.value)
+        }
+
+    @Test
+    fun `AC4_1 - no sensor reports unsupported and does not offer the start`() = runTest {
+        val fixture = Fixture(
+            backgroundScope,
+            availability = SensorAvailability.Unavailable(SensorUnavailableReason.NoSensor),
+        )
+
+        runCurrent()
+
+        assertEquals(
+            RequirementState.Unsupported(UnsupportedReason.NoAmbientLightSensor),
+            fixture.aggregator.requirement(SetupRequirementId.AmbientLightSensor).state,
+        )
+        assertFalse(fixture.aggregator.isReadyToStart.value)
+        assertFalse(fixture.aggregator.status.value.isReadyToStart)
+    }
+
+    @Test
+    fun `AC4_2 - an F5 failed controller is reported as revoked write settings and blocks start`() =
+        runTest {
+            val fixture = Fixture(backgroundScope, writeSettingsGranted = true)
+            runCurrent()
+            assertTrue(fixture.aggregator.isReadyToStart.value)
+
+            fixture.backgroundService.setState(BackgroundServiceState.Failed("write failed"))
+            runCurrent()
+
+            val writeSettings =
+                fixture.aggregator.requirement(SetupRequirementId.WriteSettings)
+            assertEquals(RequirementState.Missing(MissingReason.Revoked), writeSettings.state)
+            assertEquals(SetupAction.OpenWriteSettings, writeSettings.action)
+            assertEquals(
+                listOf(SetupRequirementId.WriteSettings),
+                fixture.aggregator.status.value.blockers,
+            )
+            assertFalse(fixture.aggregator.isReadyToStart.value)
+        }
+
+    @Test
+    fun `AC4_2 - the revoked report survives after the controller recovers`() = runTest {
+        val fixture = Fixture(backgroundScope, writeSettingsGranted = true)
+        runCurrent()
+
+        fixture.backgroundService.setState(BackgroundServiceState.Failed("write failed"))
+        runCurrent()
+        fixture.writeSettings.setGranted(false)
+        fixture.backgroundService.setState(BackgroundServiceState.Running())
+        runCurrent()
+
+        assertEquals(
+            RequirementState.Missing(MissingReason.Revoked),
+            fixture.aggregator.requirement(SetupRequirementId.WriteSettings).state,
+            "a failure proved the revocation, so the later missing grant stays revoked",
+        )
+    }
+
+    @Test
+    fun `AC4_3 - the notification warning is observable while the controller runs without the grant`() =
+        runTest {
+            val fixture = Fixture(backgroundScope, notificationsGranted = false)
+            runCurrent()
+            assertFalse(
+                fixture.aggregator.notificationWarning.value,
+                "no warning before the controller starts",
+            )
+
+            fixture.backgroundService.setState(BackgroundServiceState.Running())
+            runCurrent()
+
+            assertTrue(fixture.aggregator.notificationWarning.value)
+            assertTrue(
+                fixture.aggregator.isReadyToStart.value,
+                "the warning must never block the start",
+            )
+            assertEquals(emptyList<SetupRequirementId>(), fixture.aggregator.status.value.blockers)
+        }
+
+    @Test
+    fun `AC4_3 - the notification warning stays off when the grant is present`() = runTest {
+        val fixture = Fixture(backgroundScope, notificationsGranted = true)
+        runCurrent()
+
+        fixture.backgroundService.setState(BackgroundServiceState.Running())
+        runCurrent()
+
+        assertFalse(fixture.aggregator.notificationWarning.value)
     }
 
     private companion object {
@@ -300,6 +487,7 @@ private class Fixture(
     batteryExempt: Boolean? = true,
     store: SetupStateStore = FakeSetupStateStore(),
     clock: Clock = FakeClock(),
+    val backgroundService: FakeBrightnessBackgroundService = FakeBrightnessBackgroundService(),
 ) {
     val sensor = FakeAmbientLightService(availability)
     val writeSettings = FakeWriteSettingsPermissionChecker(granted = writeSettingsGranted)
@@ -314,6 +502,7 @@ private class Fixture(
         stateStore = store,
         scope = scope,
         clock = clock,
+        backgroundService = backgroundService,
     )
 }
 

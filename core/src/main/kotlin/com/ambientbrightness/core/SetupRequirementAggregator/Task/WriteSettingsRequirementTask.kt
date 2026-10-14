@@ -6,6 +6,7 @@ import com.ambientbrightness.core.AppSetupService.RequirementState
 import com.ambientbrightness.core.AppSetupService.SetupAction
 import com.ambientbrightness.core.AppSetupService.SetupRequirement
 import com.ambientbrightness.core.AppSetupService.SetupRequirementId
+import com.ambientbrightness.core.BackgroundService.BackgroundServiceState
 
 /**
  * Maps F2's `hasWriteSettingsPermission` boolean onto the `WriteSettings` requirement (US2, AC2.1).
@@ -21,20 +22,26 @@ import com.ambientbrightness.core.AppSetupService.SetupRequirementId
  * [MissingReason.NotGranted]. The memory is monotonic — once satisfied, always "was satisfied" — so
  * repeated derivations (including [com.ambientbrightness.core.AppSetupService.AppSetupService.refresh])
  * keep reporting the same reason.
+ *
+ * A controller report of [BackgroundServiceState.Failed] proves the permission was revoked while the
+ * controller was running, even before the checker re-reads it, so [controllerFailed] forces
+ * `Missing(Revoked)` regardless of the last boolean (US4, AC2.4).
  */
 internal class WriteSettingsRequirementTask {
 
     private var observedSatisfied = false
 
-    fun map(granted: Boolean?): SetupRequirement {
-        val state = when (granted) {
-            null -> RequirementState.Unknown
-            true -> {
+    fun map(granted: Boolean?, controllerFailed: Boolean): SetupRequirement {
+        if (controllerFailed) observedSatisfied = true
+        val state = when {
+            controllerFailed -> RequirementState.Missing(MissingReason.Revoked)
+            granted == null -> RequirementState.Unknown
+            granted -> {
                 observedSatisfied = true
                 RequirementState.Satisfied
             }
 
-            false -> RequirementState.Missing(
+            else -> RequirementState.Missing(
                 if (observedSatisfied) MissingReason.Revoked else MissingReason.NotGranted,
             )
         }

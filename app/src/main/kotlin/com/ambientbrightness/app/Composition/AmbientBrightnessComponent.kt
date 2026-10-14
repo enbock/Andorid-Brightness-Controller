@@ -181,8 +181,10 @@ class AmbientBrightnessComponent(
 
     /**
      * Setup flow (F6): aggregates the sensor, `WRITE_SETTINGS`, notification and battery-optimization
-     * sources into the checklist status and the Start gate F7 consumes. The aggregator never caches a
-     * requirement, so a resume re-derives every one of them (US2, AC2.4).
+     * sources into the checklist status and the Start gate F7 consumes. It also observes the F5
+     * background service below, so a runtime-revoked `WRITE_SETTINGS` surfaces as
+     * `Missing(Revoked)` and the advisory notification warning is observable (US4, AC4.2–AC4.3). The
+     * aggregator never caches a requirement, so a resume re-derives every one of them (US2, AC2.4).
      */
     val setupService: AppSetupService = SetupRequirementAggregator(
         ambientLightService = service,
@@ -192,6 +194,7 @@ class AmbientBrightnessComponent(
         stateStore = setupStateStore,
         scope = controllerScope,
         clock = clock,
+        backgroundService = backgroundService,
     )
 
     /** Thin forwarder of F6's setup status and Start gate for F7. */

@@ -6,10 +6,13 @@ import com.ambientbrightness.core.AppSetupService.AppSetupService
 import com.ambientbrightness.core.AppSetupService.NotificationPermissionChecker
 import com.ambientbrightness.core.AppSetupService.RequirementSeverity
 import com.ambientbrightness.core.AppSetupService.RequirementState
+import com.ambientbrightness.core.AppSetupService.SetupRequirementId
 import com.ambientbrightness.core.AppSetupService.SetupStateStore
 import com.ambientbrightness.core.AppSetupService.SetupStatus
 import com.ambientbrightness.core.AutomaticBrightnessControl.WriteSettingsPermissionChecker
+import com.ambientbrightness.core.BackgroundService.BackgroundServiceState
 import com.ambientbrightness.core.BackgroundService.BatteryOptimizationClient
+import com.ambientbrightness.core.BrightnessBackgroundService.BrightnessBackgroundService
 import com.ambientbrightness.core.SetupRequirementAggregator.Task.BatteryRequirementTask
 import com.ambientbrightness.core.SetupRequirementAggregator.Task.NotificationRequirementTask
 import com.ambientbrightness.core.SetupRequirementAggregator.Task.SensorRequirementTask
@@ -38,6 +41,13 @@ import kotlinx.coroutines.launch
  * [RequirementState.Unknown]; a blocking requirement that is unknown keeps Start disabled, so the UI
  * never claims a false "ready" (US3).
  *
+ * The optional [backgroundService] closes the loop with F5: its [BackgroundServiceState.Failed]
+ * turns the `WriteSettings` requirement into [RequirementState.Missing] with
+ * [com.ambientbrightness.core.AppSetupService.MissingReason.Revoked] and keeps it in the blockers
+ * after a runtime revocation, and its running state makes the advisory notification warning
+ * observable (US4, AC4.2–AC4.3). Without it the aggregator still works, just without those two
+ * F5-driven signals.
+ *
  * The collection runs in the injected [scope], so the composition root stays the only owner of
  * coroutine scopes.
  */
@@ -49,6 +59,7 @@ class SetupRequirementAggregator(
     private val stateStore: SetupStateStore,
     scope: CoroutineScope,
     private val clock: Clock = SystemClock,
+    backgroundService: BrightnessBackgroundService? = null,
 ) : AppSetupService {
 
     private val sensorTask = SensorRequirementTask()
@@ -60,12 +71,19 @@ class SetupRequirementAggregator(
     private val writeSettings = MutableStateFlow<Boolean?>(null)
     private val notifications = MutableStateFlow<Boolean?>(null)
     private val batteryExempt = MutableStateFlow<Boolean?>(null)
+    private val backgroundServiceState = MutableStateFlow<BackgroundServiceState?>(null)
 
     private val mutableStatus = MutableStateFlow(deriveStatus())
     override val status: StateFlow<SetupStatus> = mutableStatus.asStateFlow()
 
     private val mutableIsReadyToStart = MutableStateFlow(mutableStatus.value.isReadyToStart)
     override val isReadyToStart: StateFlow<Boolean> = mutableIsReadyToStart.asStateFlow()
+
+    private val mutableAcknowledged = MutableStateFlow(stateStore.setupAcknowledged)
+    override val setupAcknowledged: StateFlow<Boolean> = mutableAcknowledged.asStateFlow()
+
+    private val mutableNotificationWarning = MutableStateFlow(warningFor(mutableStatus.value))
+    override val notificationWarning: StateFlow<Boolean> = mutableNotificationWarning.asStateFlow()
 
     init {
         scope.launch {
@@ -92,33 +110,54 @@ class SetupRequirementAggregator(
                 publishDerived()
             }
         }
+        backgroundService?.let { service ->
+            scope.launch {
+                service.state.collect { state ->
+                    backgroundServiceState.value = state
+                    publishDerived()
+                }
+            }
+        }
     }
 
     /**
-     * Re-derives [status] and [isReadyToStart] from the latest observed source values and publishes
-     * them. The sources are observed continuously, so this is normally idempotent; it exists as the
-     * seam the ON_RESUME hook calls, guaranteeing the checklist sees a fresh derivation without the
-     * aggregator ever polling or caching a requirement (US2, AC2.4).
+     * Re-derives [status], [isReadyToStart] and [notificationWarning] from the latest observed
+     * source values and publishes them. The sources are observed continuously, so this is normally
+     * idempotent; it exists as the seam the ON_RESUME hook calls, guaranteeing the checklist sees a
+     * fresh derivation without the aggregator ever polling or caching a requirement (US2, AC2.4).
      */
     override fun refresh() {
         publishDerived()
     }
 
+    override fun completeSetup() {
+        acknowledgeSetup()
+    }
+
+    override fun skipSetup() {
+        acknowledgeSetup()
+    }
+
     override fun acknowledgeSetup() {
         stateStore.setupAcknowledged = true
         stateStore.lastShownAtMillis = clock.nowMillis()
+        mutableAcknowledged.value = true
     }
 
     private fun publishDerived() {
         val derived = deriveStatus()
         mutableStatus.value = derived
         mutableIsReadyToStart.value = derived.isReadyToStart
+        mutableNotificationWarning.value = warningFor(derived)
     }
 
     private fun deriveStatus(): SetupStatus {
         val requirements = listOf(
             sensorTask.map(sensor.value),
-            writeSettingsTask.map(writeSettings.value),
+            writeSettingsTask.map(
+                granted = writeSettings.value,
+                controllerFailed = backgroundServiceState.value is BackgroundServiceState.Failed,
+            ),
             notificationTask.map(notifications.value),
             batteryTask.map(batteryExempt.value),
         )
@@ -134,5 +173,22 @@ class SetupRequirementAggregator(
             isReadyToStart = blockers.isEmpty(),
             blockers = blockers,
         )
+    }
+
+    /**
+     * The advisory warning is true only while the notification requirement is missing and the
+     * controller has been started, because that is when the ongoing notification should be visible
+     * but may not be (US4, AC4.3). It never influences [SetupStatus.isReadyToStart].
+     */
+    private fun warningFor(status: SetupStatus): Boolean {
+        val notificationsMissing = status.requirements
+            .any { requirement ->
+                requirement.id == SetupRequirementId.Notifications &&
+                    requirement.state is RequirementState.Missing
+            }
+        val controllerStarted = backgroundServiceState.value.let { state ->
+            state is BackgroundServiceState.Starting || state is BackgroundServiceState.Running
+        }
+        return notificationsMissing && controllerStarted
     }
 }

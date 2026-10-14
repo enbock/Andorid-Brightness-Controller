@@ -22,8 +22,34 @@ interface AppSetupService {
      */
     val isReadyToStart: StateFlow<Boolean>
 
+    /**
+     * The persisted acknowledgement, seeded from [SetupStateStore.setupAcknowledged] and turned true
+     * as soon as the setup is completed or skipped. The presentation uses it to decide between the
+     * first-run view and the permanent "what is missing" view (US1, AC1.3).
+     */
+    val setupAcknowledged: StateFlow<Boolean>
+
+    /**
+     * Whether the ongoing-service notification may be invisible to the user: true while the
+     * [SetupRequirementId.Notifications] requirement is missing and the controller has been started.
+     * It is advisory and never gates Start (US4, AC4.3).
+     */
+    val notificationWarning: StateFlow<Boolean>
+
     /** Re-derives the status from the live sources; called when the app resumes (US2, AC2.4). */
     fun refresh()
+
+    /**
+     * Ends the setup because the user granted everything; persists the acknowledgement so the flow
+     * is not repeated (US1, AC1.3).
+     */
+    fun completeSetup()
+
+    /**
+     * Ends the setup because the user chose to look around first; persists the same acknowledgement
+     * as [completeSetup], so the checklist stays the permanent "what is missing" view (US1, AC1.3).
+     */
+    fun skipSetup()
 
     /** Persists that the user completed or skipped the setup, so it is not repeated (US1, AC1.3). */
     fun acknowledgeSetup()
