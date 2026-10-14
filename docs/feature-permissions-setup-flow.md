@@ -177,7 +177,7 @@ Only two facts are persisted, via `SetupStateStore` (DataStore/SharedPreferences
 
 ### Implementation Tasks
 
-- [ ] **T1 — Core requirement model & boundary interfaces**: add `SetupStatus`, `SetupRequirement`, `SetupRequirementId`, `RequirementSeverity`, `RequirementState` (+ `MissingReason`/`UnsupportedReason`), `SetupAction`, the `AppSetupService` boundary interface, and the `NotificationPermissionChecker` and `SetupStateStore` interfaces. Keep them Android-free. *Files: `:core/src/main/kotlin/com/ambientbrightness/core/AppSetupService/**`.* *Verify: compiles without Android; the model expresses every US1–US4 state.* (depends on: none)
+- [x] **T1 — Core requirement model & boundary interfaces**: add `SetupStatus`, `SetupRequirement`, `SetupRequirementId`, `RequirementSeverity`, `RequirementState` (+ `MissingReason`/`UnsupportedReason`), `SetupAction`, the `AppSetupService` boundary interface, and the `NotificationPermissionChecker` and `SetupStateStore` interfaces. Keep them Android-free. *Files: `:core/src/main/kotlin/com/ambientbrightness/core/AppSetupService/**`.* *Verify: compiles without Android; the model expresses every US1–US4 state.* (depends on: none)
 - [ ] **T2 — Aggregation service and per-requirement tasks**: implement `SetupRequirementAggregator` (implements `AppSetupService`) subscribing to F1 `AmbientLightService.availability`, F2 `WriteSettingsPermissionChecker`, F5 `BatteryOptimizationClient.isExempt` and `NotificationPermissionChecker.isGranted`; add the `Task/` classes that map each source to a `SetupRequirement`, compute `isReadyToStart` and `blockers` (only `Blocking` requirements gate), and make `Notifications` and `BatteryOptimization` `Advisory`. *Files: `:core/.../SetupRequirementAggregator/**`.* *Verify: unit tests against the state matrix and the Start gate with fakes.* (depends on: T1)
 - [ ] **T3 — Infrastructure adapters (real + Dummy)**: implement `AndroidNotificationPermissionChecker` (`NotificationManagerCompat.areNotificationsEnabled`/`checkSelfPermission`) and `AndroidSetupStateStore`, plus `DummyNotificationPermissionChecker` and `DummySetupStateStore`. *Files: `:infrastructure/src/main/kotlin/com/ambientbrightness/infrastructure/**`.* *Verify: instrumented persistence test; `:app` runs on the Dummies.* (depends on: T1)
 - [ ] **T4 — App navigation, lifecycle and wiring**: implement `SetupFlowNavigator` (`perform(SetupAction)` → `ACTION_MANAGE_WRITE_SETTINGS` with `package:` URI, battery-optimization settings intent, notification permission launcher; `ActivityNotFoundException` fallback chain), `SetupFlowCollector` (thin pass-through) and `SetupLifecycleObserver` (ON_RESUME → `refresh()`); wire DI in the composition root and add `POST_NOTIFICATIONS` to the manifest. *Files: `:app/src/main/kotlin/com/ambientbrightness/app/SetupFlow*/**`, `:app/src/main/AndroidManifest.xml`.* *Verify: intent/fallback tests; ON_RESUME triggers `refresh()`.* (depends on: T2, T3)
@@ -186,3 +186,17 @@ Only two facts are persisted, via `SetupStateStore` (DataStore/SharedPreferences
 ### Suggested Implementation Order
 
 `T1 → (T2 ∥ T3) → T4 → T5`. T1 fixes the `AppSetupService` contract F7 consumes and gates Start on, so it lands first and is reviewed with F7. T2 and T3 are independent once T1 exists (T2 tests use fakes, T3 touches only infrastructure). T4 depends on both because navigation needs the model and the notification checker. T5 closes the loop for the first-run and degraded paths and must run against real adapters. Ship T1–T2 as a vertical model slice testable with fakes before any UI wiring.
+
+## Implementation Notes
+
+### T1 — Core requirement model & boundary interfaces
+
+*Done: implementation commit `474d557`.*
+
+- Added the Android-free setup model in `:core` under `com.ambientbrightness.core.AppSetupService`, one type per file: `SetupStatus`, `SetupRequirement`, `SetupRequirementId`, `RequirementSeverity`, `RequirementState`, `MissingReason`, `UnsupportedReason`, `SetupAction`.
+- Added the boundaries F7 and `:infrastructure` consume: `AppSetupService` (`status`/`isReadyToStart` as `StateFlow`, `refresh()`, `acknowledgeSetup()`), `NotificationPermissionChecker` (`isGranted: Flow<Boolean>`) and `SetupStateStore` (`setupAcknowledged`, `lastShownAtMillis`).
+- Documented the fixed severity mapping in KDoc (`AmbientLightSensor`/`WriteSettings` = `Blocking`, `Notifications`/`BatteryOptimization` = `Advisory`) and that only `Blocking` requirements gate Start; each KDoc names the user story/AC it serves.
+- No aggregator, no persistence and no navigation: behaviour lands in T2–T5. The aggregator will own the id→severity mapping at runtime.
+- Test `core/src/test/kotlin/com/ambientbrightness/core/AppSetupService/AppSetupModelTest.kt` (JUnit 5 Jupiter, backticked names) constructs every `RequirementState` variant and `SetupAction`, branches over both hierarchies with an exhaustive `when` and no `else`, asserts the severity rule for all four ids, and covers `SetupStatus` equality/`copy` plus `blockers` (only blocking, not-`Satisfied` ids).
+- Verification: `.\gradlew.bat :core:test --no-daemon --console=plain` → BUILD SUCCESSFUL, 212 tests / 0 failures / 0 errors / 0 skipped (32 suites; 11 of them in `AppSetupModelTest`). No `android.*` or `androidx.*` import in the new files.
+
