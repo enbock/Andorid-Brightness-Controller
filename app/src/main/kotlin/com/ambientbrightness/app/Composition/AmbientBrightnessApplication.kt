@@ -10,6 +10,8 @@ import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.BuiltInAd
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Android.AndroidDeviceBrightnessRangeClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.SystemBrightnessClient.Android.AndroidSystemBrightnessClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.WriteSettingsPermissionChecker.Android.AndroidWriteSettingsPermissionChecker
+import com.ambientbrightness.infrastructure.BackgroundService.BatteryOptimizationClient.Android.AndroidBatteryOptimizationClient
+import com.ambientbrightness.infrastructure.BackgroundService.ControllerStateStore.Android.AndroidControllerStateStore
 import com.ambientbrightness.infrastructure.SettingsStore.SettingsStore.Android.AndroidDataStoreSettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +30,7 @@ class AmbientBrightnessApplication : Application() {
         val sensorManager = getSystemService(SensorManager::class.java)
         val powerManager = getSystemService(PowerManager::class.java)
         val displayManager = getSystemService(DisplayManager::class.java)
+        val foregroundServiceHost = ForegroundServiceHostBridge(this)
 
         component = AmbientBrightnessComponent(
             sensorClient = AndroidAmbientLightSensorClient(sensorManager),
@@ -42,6 +45,13 @@ class AmbientBrightnessApplication : Application() {
             writeSettingsPermissionChecker = AndroidWriteSettingsPermissionChecker(this, appScope),
             builtInAdaptiveBrightnessClient = AndroidBuiltInAdaptiveBrightnessClient(this),
             settingsStore = AndroidDataStoreSettingsStore.create(context = this, scope = appScope),
+            foregroundServiceHost = foregroundServiceHost,
+            controllerStateStore = AndroidControllerStateStore(this),
+            batteryOptimizationClient = AndroidBatteryOptimizationClient.create(this),
         )
+
+        // The notification's Stop action reaches the service; forward it to the use case so it
+        // travels the same path as a stop requested from the UI (F2 stop → restore → foreground stop).
+        foregroundServiceHost.stopRequestHandler = { component.backgroundService.stop() }
     }
 }

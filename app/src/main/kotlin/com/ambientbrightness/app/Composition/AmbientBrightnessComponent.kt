@@ -2,6 +2,7 @@ package com.ambientbrightness.app.Composition
 
 import com.ambientbrightness.app.AmbientLightSensing.Collector.AmbientLightCollector
 import com.ambientbrightness.app.AutomaticBrightnessControl.Collector.BrightnessStatusCollector
+import com.ambientbrightness.app.BackgroundService.Collector.BrightnessServiceCollector
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightService.DefaultAmbientLightService
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightUseCase.AmbientLightUseCase
@@ -14,6 +15,12 @@ import com.ambientbrightness.core.AutomaticBrightnessControl.BuiltInAdaptiveBrig
 import com.ambientbrightness.core.AutomaticBrightnessControl.DeviceBrightnessRangeClient
 import com.ambientbrightness.core.AutomaticBrightnessControl.SystemBrightnessClient
 import com.ambientbrightness.core.AutomaticBrightnessControl.WriteSettingsPermissionChecker
+import com.ambientbrightness.core.BackgroundNotificationBuilder.BackgroundNotificationBuilder
+import com.ambientbrightness.core.BackgroundService.BatteryOptimizationClient
+import com.ambientbrightness.core.BackgroundService.ControllerStateStore
+import com.ambientbrightness.core.BackgroundService.ForegroundServiceHost
+import com.ambientbrightness.core.BackgroundServiceUseCase.BackgroundServiceUseCase
+import com.ambientbrightness.core.BrightnessBackgroundService.BrightnessBackgroundService
 import com.ambientbrightness.core.BrightnessOffsetService.BrightnessOffsetService
 import com.ambientbrightness.core.BrightnessOffsetStateHolder.BrightnessOffsetStateHolder
 import com.ambientbrightness.core.BrightnessOffsetTransform.BrightnessOffsetTransform
@@ -23,21 +30,26 @@ import com.ambientbrightness.core.ResponsiveBrightnessRamp.ResponsiveBrightnessR
 import com.ambientbrightness.core.SettingsStore.SettingsStore
 import com.ambientbrightness.core.Shared.Clock
 import com.ambientbrightness.core.Shared.SystemClock
+import com.ambientbrightness.core.StopBrightnessRestorer.StopBrightnessRestorer
 import com.ambientbrightness.core.UserConfigurableStabiliser.UserConfigurableStabiliser
 import com.ambientbrightness.infrastructure.SettingsStore.SettingsStore.InMemory.InMemorySettingsStore
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.BuiltInAdaptiveBrightnessClient.Dummy.DummyBuiltInAdaptiveBrightnessClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.DeviceBrightnessRangeClient.Dummy.DummyDeviceBrightnessRangeClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.SystemBrightnessClient.Dummy.DummySystemBrightnessClient
 import com.ambientbrightness.infrastructure.AutomaticBrightnessControl.WriteSettingsPermissionChecker.Dummy.DummyWriteSettingsPermissionChecker
+import com.ambientbrightness.infrastructure.BackgroundService.BatteryOptimizationClient.Dummy.DummyBatteryOptimizationClient
+import com.ambientbrightness.infrastructure.BackgroundService.ControllerStateStore.Dummy.DummyControllerStateStore
+import com.ambientbrightness.infrastructure.BackgroundService.ForegroundServiceHost.DummyForegroundServiceHost
 import kotlinx.coroutines.CoroutineScope
 
 /**
- * App-scoped manual composition root for ambient sensing and automatic brightness control. Its
- * client parameters also let tests exercise the same controller boundaries with deterministic
- * clients instead of device sensors and settings. The brightness clients default to the
- * deterministic Dummy adapters, [settingsStore] to the in-memory store and [clock] to the system
- * clock, so the app stays runnable without a device; the Application passes the persistent
- * DataStore-backed store instead.
+ * App-scoped manual composition root for ambient sensing, automatic brightness control and the
+ * background service. Its client parameters also let tests exercise the same controller boundaries
+ * with deterministic clients instead of device sensors and settings. The brightness clients, the
+ * background-service host, the [ControllerStateStore] and the [BatteryOptimizationClient] default to
+ * the deterministic Dummy adapters, [settingsStore] to the in-memory store and [clock] to the system
+ * clock, so the app stays runnable without a device; the Application passes the persistent Android
+ * implementations instead.
  */
 class AmbientBrightnessComponent(
     sensorClient: AmbientLightSensorClient,
@@ -51,6 +63,9 @@ class AmbientBrightnessComponent(
         DummyBuiltInAdaptiveBrightnessClient(),
     val settingsStore: SettingsStore = InMemorySettingsStore(),
     clock: Clock = SystemClock,
+    foregroundServiceHost: ForegroundServiceHost = DummyForegroundServiceHost(),
+    controllerStateStore: ControllerStateStore = DummyControllerStateStore(),
+    batteryOptimizationClient: BatteryOptimizationClient = DummyBatteryOptimizationClient(),
 ) {
 
     private val sensorRangeLux = (sensorClient.availability as? SensorAvailability.Available)
@@ -133,6 +148,26 @@ class AmbientBrightnessComponent(
     val controller: AutomaticBrightnessController = brightnessController
 
     val statusCollector = BrightnessStatusCollector(controller)
+
+    /**
+     * Background service (F5): owns the control loop's lifetime and the foreground notification. It
+     * drives the same [brightnessController] the status collector above observes, so there is one
+     * control loop, and it exposes the lifecycle through [BrightnessBackgroundService.state] for the
+     * notification and F6/F7. The restore path writes through the same [brightnessClient], so there
+     * is no parallel brightness mechanism (AC3.2).
+     */
+    val backgroundService: BrightnessBackgroundService = BackgroundServiceUseCase(
+        controller = brightnessController,
+        host = foregroundServiceHost,
+        controllerStateStore = controllerStateStore,
+        batteryOptimizationClient = batteryOptimizationClient,
+        restorer = StopBrightnessRestorer(brightnessClient),
+        notificationBuilder = BackgroundNotificationBuilder(),
+        scope = controllerScope,
+    )
+
+    /** Thin forwarder of F5's state and battery-optimization exemption for F6/F7. */
+    val backgroundServiceCollector = BrightnessServiceCollector(backgroundService)
 
     /** Immediately cancels service collection and unregisters any active sensor listener. */
     fun stop() {
