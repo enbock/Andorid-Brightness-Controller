@@ -15,6 +15,7 @@ import com.ambientbrightness.core.BackgroundService.StartReason
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
 
 /**
  * Shared, ordered record of the calls the F5 fakes receive, so a test can assert the exact
@@ -101,14 +102,17 @@ internal class FakeControllerStateStore(
     override var lastStartReason: StartReason? = null,
 ) : ControllerStateStore
 
-/** [BatteryOptimizationClient] double with a settable exemption and call counters. */
+/**
+ * [BatteryOptimizationClient] double with a settable exemption and call counters. A null [exempt]
+ * withholds the first emission, so a subject sees no value until [setExempt] is called.
+ */
 internal class FakeBatteryOptimizationClient(
-    exempt: Boolean = false,
+    exempt: Boolean? = false,
 ) : BatteryOptimizationClient {
 
     private val mutableExempt = MutableStateFlow(exempt)
 
-    override val isExempt: Flow<Boolean> = mutableExempt
+    override val isExempt: Flow<Boolean> = mutableExempt.filterNotNull()
 
     var requestExemptionCalls: Int = 0
         private set
@@ -124,7 +128,7 @@ internal class FakeBatteryOptimizationClient(
         openSettingsCalls++
     }
 
-    fun setExempt(exempt: Boolean) {
+    fun setExempt(exempt: Boolean?) {
         mutableExempt.value = exempt
     }
 }

@@ -187,6 +187,11 @@ internal class FakeAmbientLightService(
         stopCalls++
     }
 
+    /** Publishes a new availability as if F1 had re-detected the sensor. */
+    fun setAvailability(availability: SensorAvailability) {
+        mutableAvailability.value = availability
+    }
+
     /** Delivers [lux] to the active collection; readings published while nobody collects are lost. */
     fun publish(lux: Float, timestampMillis: Long = 0L) {
         samples.tryEmit(LuxSample(lux = lux, timestampMillis = timestampMillis))

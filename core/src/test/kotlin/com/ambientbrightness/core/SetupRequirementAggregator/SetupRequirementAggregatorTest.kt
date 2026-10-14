@@ -1,0 +1,321 @@
+package com.ambientbrightness.core.SetupRequirementAggregator
+
+import com.ambientbrightness.core.AmbientLightSensing.SensorAvailability
+import com.ambientbrightness.core.AmbientLightSensing.SensorProfile
+import com.ambientbrightness.core.AmbientLightSensing.SensorUnavailableReason
+import com.ambientbrightness.core.AppSetupService.MissingReason
+import com.ambientbrightness.core.AppSetupService.RequirementSeverity
+import com.ambientbrightness.core.AppSetupService.RequirementState
+import com.ambientbrightness.core.AppSetupService.SetupAction
+import com.ambientbrightness.core.AppSetupService.SetupRequirement
+import com.ambientbrightness.core.AppSetupService.SetupRequirementId
+import com.ambientbrightness.core.AppSetupService.SetupStateStore
+import com.ambientbrightness.core.AppSetupService.UnsupportedReason
+import com.ambientbrightness.core.FakeClock
+import com.ambientbrightness.core.Shared.Clock
+import com.ambientbrightness.core.testdoubles.FakeAmbientLightService
+import com.ambientbrightness.core.testdoubles.FakeBatteryOptimizationClient
+import com.ambientbrightness.core.testdoubles.FakeNotificationPermissionChecker
+import com.ambientbrightness.core.testdoubles.FakeSetupStateStore
+import com.ambientbrightness.core.testdoubles.FakeWriteSettingsPermissionChecker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class SetupRequirementAggregatorTest {
+
+    @Test
+    fun `US3 - before any source reports, every requirement is unknown and start is blocked`() = runTest {
+        val fixture = Fixture(backgroundScope)
+
+        val status = fixture.aggregator.status.value
+
+        assertEquals(
+            listOf(
+                SetupRequirementId.AmbientLightSensor,
+                SetupRequirementId.WriteSettings,
+                SetupRequirementId.Notifications,
+                SetupRequirementId.BatteryOptimization,
+            ),
+            status.requirements.map { it.id },
+        )
+        status.requirements.forEach { requirement ->
+            assertEquals(RequirementState.Unknown, requirement.state)
+            assertEquals(SetupAction.None, requirement.action)
+        }
+        assertFalse(status.isReadyToStart)
+        assertEquals(
+            listOf(SetupRequirementId.AmbientLightSensor, SetupRequirementId.WriteSettings),
+            status.blockers,
+        )
+        assertFalse(fixture.aggregator.isReadyToStart.value)
+    }
+
+    @Test
+    fun `AC3_3 - satisfied blocking requirements enable start and clear the blockers`() = runTest {
+        val fixture = Fixture(backgroundScope, availability = AVAILABLE)
+
+        runCurrent()
+
+        assertEquals(RequirementState.Satisfied, fixture.aggregator.requirement(SetupRequirementId.AmbientLightSensor).state)
+        assertEquals(RequirementState.Satisfied, fixture.aggregator.requirement(SetupRequirementId.WriteSettings).state)
+        assertEquals(RequirementState.Satisfied, fixture.aggregator.requirement(SetupRequirementId.Notifications).state)
+        assertEquals(
+            RequirementState.Satisfied,
+            fixture.aggregator.requirement(SetupRequirementId.BatteryOptimization).state,
+        )
+        assertTrue(fixture.aggregator.status.value.isReadyToStart)
+        assertTrue(fixture.aggregator.isReadyToStart.value)
+        assertEquals(emptyList<SetupRequirementId>(), fixture.aggregator.status.value.blockers)
+    }
+
+    @Test
+    fun `AC4_1 - a device without a sensor is unsupported and blocks start`() = runTest {
+        val fixture = Fixture(
+            backgroundScope,
+            availability = SensorAvailability.Unavailable(SensorUnavailableReason.NoSensor),
+        )
+
+        runCurrent()
+
+        val sensor = fixture.aggregator.requirement(SetupRequirementId.AmbientLightSensor)
+        assertEquals(
+            RequirementState.Unsupported(UnsupportedReason.NoAmbientLightSensor),
+            sensor.state,
+        )
+        assertEquals(RequirementSeverity.Blocking, sensor.severity)
+        assertEquals(SetupAction.None, sensor.action)
+        assertFalse(fixture.aggregator.isReadyToStart.value)
+        assertEquals(
+            listOf(SetupRequirementId.AmbientLightSensor),
+            fixture.aggregator.status.value.blockers,
+        )
+    }
+
+    @Test
+    fun `AC4_1 - a sensor that never reports is unsupported as well`() = runTest {
+        val fixture = Fixture(
+            backgroundScope,
+            availability = SensorAvailability.Unavailable(SensorUnavailableReason.NotUsable),
+        )
+
+        runCurrent()
+
+        assertEquals(
+            RequirementState.Unsupported(UnsupportedReason.NoAmbientLightSensor),
+            fixture.aggregator.requirement(SetupRequirementId.AmbientLightSensor).state,
+        )
+    }
+
+    @Test
+    fun `AC2_1 - a missing write settings grant is not granted and offers the settings screen`() = runTest {
+        val fixture = Fixture(backgroundScope, writeSettingsGranted = false)
+
+        runCurrent()
+
+        val writeSettings = fixture.aggregator.requirement(SetupRequirementId.WriteSettings)
+        assertEquals(RequirementState.Missing(MissingReason.NotGranted), writeSettings.state)
+        assertEquals(RequirementSeverity.Blocking, writeSettings.severity)
+        assertEquals(SetupAction.OpenWriteSettings, writeSettings.action)
+        assertEquals(
+            listOf(SetupRequirementId.WriteSettings),
+            fixture.aggregator.status.value.blockers,
+        )
+        assertFalse(fixture.aggregator.isReadyToStart.value)
+    }
+
+    @Test
+    fun `AC4_2 - a write settings grant revoked after being observed is reported as revoked`() = runTest {
+        val fixture = Fixture(backgroundScope, writeSettingsGranted = true)
+        runCurrent()
+        assertEquals(
+            RequirementState.Satisfied,
+            fixture.aggregator.requirement(SetupRequirementId.WriteSettings).state,
+        )
+
+        fixture.writeSettings.setGranted(false)
+        runCurrent()
+
+        val writeSettings = fixture.aggregator.requirement(SetupRequirementId.WriteSettings)
+        assertEquals(RequirementState.Missing(MissingReason.Revoked), writeSettings.state)
+        assertEquals(SetupAction.OpenWriteSettings, writeSettings.action)
+        assertFalse(fixture.aggregator.isReadyToStart.value)
+    }
+
+    @Test
+    fun `AC4_3 - a denied notification permission is advisory and never blocks start`() = runTest {
+        val fixture = Fixture(backgroundScope, notificationsGranted = false)
+
+        runCurrent()
+
+        val notifications = fixture.aggregator.requirement(SetupRequirementId.Notifications)
+        assertEquals(RequirementState.Missing(MissingReason.NotGranted), notifications.state)
+        assertEquals(RequirementSeverity.Advisory, notifications.severity)
+        assertEquals(SetupAction.RequestNotificationPermission, notifications.action)
+        assertTrue(fixture.aggregator.isReadyToStart.value)
+        assertEquals(emptyList<SetupRequirementId>(), fixture.aggregator.status.value.blockers)
+    }
+
+    @Test
+    fun `AC4_3 - a granted notification permission is satisfied and offers no action`() = runTest {
+        val fixture = Fixture(backgroundScope, notificationsGranted = true)
+
+        runCurrent()
+
+        val notifications = fixture.aggregator.requirement(SetupRequirementId.Notifications)
+        assertEquals(RequirementState.Satisfied, notifications.state)
+        assertEquals(SetupAction.None, notifications.action)
+    }
+
+    @Test
+    fun `AC2_3 - a non exempt app is advisory missing and offers the battery settings screen`() = runTest {
+        val fixture = Fixture(backgroundScope, batteryExempt = false)
+
+        runCurrent()
+
+        val battery = fixture.aggregator.requirement(SetupRequirementId.BatteryOptimization)
+        assertEquals(RequirementState.Missing(MissingReason.NotGranted), battery.state)
+        assertEquals(RequirementSeverity.Advisory, battery.severity)
+        assertEquals(SetupAction.OpenBatteryOptimizationSettings, battery.action)
+        assertTrue(fixture.aggregator.isReadyToStart.value)
+        assertEquals(emptyList<SetupRequirementId>(), fixture.aggregator.status.value.blockers)
+    }
+
+    @Test
+    fun `AC2_3 - an exempt app is satisfied and offers no action`() = runTest {
+        val fixture = Fixture(backgroundScope, batteryExempt = true)
+
+        runCurrent()
+
+        val battery = fixture.aggregator.requirement(SetupRequirementId.BatteryOptimization)
+        assertEquals(RequirementState.Satisfied, battery.state)
+        assertEquals(SetupAction.None, battery.action)
+    }
+
+    @Test
+    fun `an advisory source that never emits stays unknown and never blocks start`() = runTest {
+        val fixture = Fixture(backgroundScope, notificationsGranted = null, batteryExempt = null)
+
+        runCurrent()
+
+        assertEquals(
+            RequirementState.Unknown,
+            fixture.aggregator.requirement(SetupRequirementId.Notifications).state,
+        )
+        assertEquals(
+            RequirementState.Unknown,
+            fixture.aggregator.requirement(SetupRequirementId.BatteryOptimization).state,
+        )
+        assertEquals(
+            SetupAction.None,
+            fixture.aggregator.requirement(SetupRequirementId.Notifications).action,
+        )
+        assertEquals(
+            SetupAction.None,
+            fixture.aggregator.requirement(SetupRequirementId.BatteryOptimization).action,
+        )
+        assertTrue(fixture.aggregator.isReadyToStart.value)
+        assertEquals(emptyList<SetupRequirementId>(), fixture.aggregator.status.value.blockers)
+    }
+
+    @Test
+    fun `AC2_4 - a source change updates the status without rebuilding the aggregator`() = runTest {
+        val fixture = Fixture(backgroundScope, availability = AVAILABLE, writeSettingsGranted = true)
+        runCurrent()
+        assertTrue(fixture.aggregator.isReadyToStart.value)
+
+        fixture.sensor.setAvailability(SensorAvailability.Unavailable(SensorUnavailableReason.NoSensor))
+        runCurrent()
+
+        assertFalse(fixture.aggregator.isReadyToStart.value)
+        assertEquals(
+            listOf(SetupRequirementId.AmbientLightSensor),
+            fixture.aggregator.status.value.blockers,
+        )
+
+        fixture.writeSettings.setGranted(false)
+        runCurrent()
+
+        assertEquals(
+            listOf(SetupRequirementId.AmbientLightSensor, SetupRequirementId.WriteSettings),
+            fixture.aggregator.status.value.blockers,
+        )
+
+        fixture.notifications.setGranted(false)
+        runCurrent()
+
+        assertEquals(
+            RequirementState.Missing(MissingReason.NotGranted),
+            fixture.aggregator.requirement(SetupRequirementId.Notifications).state,
+        )
+        assertEquals(
+            listOf(SetupRequirementId.AmbientLightSensor, SetupRequirementId.WriteSettings),
+            fixture.aggregator.status.value.blockers,
+        )
+    }
+
+    @Test
+    fun `refresh re-derives from the latest observed values and stays idempotent`() = runTest {
+        val fixture = Fixture(backgroundScope, writeSettingsGranted = false)
+        runCurrent()
+        val derived = fixture.aggregator.status.value
+
+        fixture.aggregator.refresh()
+
+        assertEquals(derived, fixture.aggregator.status.value)
+        assertEquals(derived.isReadyToStart, fixture.aggregator.isReadyToStart.value)
+        assertEquals(listOf(SetupRequirementId.WriteSettings), fixture.aggregator.status.value.blockers)
+    }
+
+    @Test
+    fun `AC1_3 - acknowledging the setup persists the flag and the timestamp`() = runTest {
+        val store = FakeSetupStateStore()
+        val clock = FakeClock(nowMillis = 1_700_000_000_000L)
+        val fixture = Fixture(backgroundScope, store = store, clock = clock)
+
+        fixture.aggregator.acknowledgeSetup()
+
+        assertTrue(store.setupAcknowledged)
+        assertEquals(1_700_000_000_000L, store.lastShownAtMillis)
+    }
+
+    private companion object {
+        val AVAILABLE: SensorAvailability = SensorAvailability.Available(AVAILABLE_PROFILE)
+    }
+}
+
+private val AVAILABLE_PROFILE = SensorProfile("Fake light sensor", maxRangeLux = 10_000f, minDelayMicros = 0)
+
+private class Fixture(
+    scope: CoroutineScope,
+    availability: SensorAvailability = SensorAvailability.Available(AVAILABLE_PROFILE),
+    writeSettingsGranted: Boolean = true,
+    notificationsGranted: Boolean? = true,
+    batteryExempt: Boolean? = true,
+    store: SetupStateStore = FakeSetupStateStore(),
+    clock: Clock = FakeClock(),
+) {
+    val sensor = FakeAmbientLightService(availability)
+    val writeSettings = FakeWriteSettingsPermissionChecker(granted = writeSettingsGranted)
+    val notifications = FakeNotificationPermissionChecker(initiallyGranted = notificationsGranted)
+    val battery = FakeBatteryOptimizationClient(exempt = batteryExempt)
+
+    val aggregator = SetupRequirementAggregator(
+        ambientLightService = sensor,
+        writeSettingsPermissionChecker = writeSettings,
+        batteryOptimizationClient = battery,
+        notificationPermissionChecker = notifications,
+        stateStore = store,
+        scope = scope,
+        clock = clock,
+    )
+}
+
+private fun SetupRequirementAggregator.requirement(id: SetupRequirementId): SetupRequirement =
+    status.value.requirements.single { it.id == id }
