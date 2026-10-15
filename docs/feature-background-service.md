@@ -438,6 +438,8 @@ restore has one external dependency (F2's `BrightnessSnapshot` accessor) — unb
   `FLAG_AUTO_CANCEL` and carries exactly one "Stop" action, and (when notifications are visible)
   asserts the same on the posted notification. Device-dependent assertions use `assumeTrue`, matching
   the module's existing smoke tests; here it only has to compile.
+  *(Superseded: the test was later relocated to `:app`'s androidTest because it never actually ran from
+  here — see the Correction note below.)*
 - `:infrastructure` gained `implementation(libs.androidx.core.ktx)` (for `NotificationCompat`,
   `ServiceCompat`, `ContextCompat`, `NotificationManagerCompat`); the instrumented test deliberately
   uses only platform APIs so it does not depend on the androidx test classpath. No `:core` change:
@@ -447,6 +449,31 @@ restore has one external dependency (F2's `BrightnessSnapshot` accessor) — unb
   `.\gradlew.bat :infrastructure:test :infrastructure:assembleDebugAndroidTest :app:assembleDebug --no-daemon --console=plain`
   → **BUILD SUCCESSFUL** (92 actionable tasks); `:infrastructure` unit tests 8 classes / 32 tests,
   0 failures; `:infrastructure:assembleDebugAndroidTest` and `:app:assembleDebug` compile/link.
+
+#### Correction (after the on-device run)
+
+*Fix commit `1cd07b8`.*
+
+- **The T4 instrumented test never actually ran.** It was placed in `:infrastructure`'s androidTest, but
+  the `<service>` is declared in the **app** manifest and `infrastructure/src/main/AndroidManifest.xml`
+  is empty, so the infrastructure test target
+  (`com.ambientbrightness.infrastructure.test`) has no such component. On the emulator every attempt
+  failed in `ActivityManager` with *"Unable to start service … not found"*, the `assumeTrue` guard then
+  skipped the test, and the suite reported green while proving nothing. This is exactly the failure mode
+  the architecture document records for the F2 adapter tests, which had to move to `:app` for the same
+  reason.
+- The test was **relocated** to `app/src/androidTest/kotlin/com/ambientbrightness/app/ForegroundBrightnessServiceTest.kt`
+  (same class, same assertions, new package). In `:app`'s androidTest the app manifest is in effect, so
+  the service exists and the test executes for real.
+- Verified on the `medium_phone` AVD (Android 16 / API 36):
+  `:infrastructure:connectedDebugAndroidTest` → **6 tests, 0 failures, 0 skipped**;
+  `:app:connectedDebugAndroidTest` → **16 tests, 0 failures, 0 skipped** (the class moved between the two
+  suites, and *no* test is skipped any more). This is the first run in which any F5 instrumented
+  assertion was actually executed.
+- **Precondition for a green on-device run:** the F2 adapter tests need
+  `adb shell appops set com.ambientbrightness.app WRITE_SETTINGS allow`. The connected task reinstalls
+  the app, which discards a previously set appop, so the grant must be applied *while the run is in
+  progress* — the F2 document already records the same finding.
 
 ### T5 — Persistence, battery-optimization client and boot restart
 
@@ -561,7 +588,7 @@ restore has one external dependency (F2's `BrightnessSnapshot` accessor) — unb
   swipe-from-recents (AC1.2) cannot be reproduced on a plain JVM — they require the Android platform to
   reclaim and restart the process, and the recents swipe is an ActivityManager behaviour. The JVM test
   therefore simulates the restart (above) and the bridge's real delegation stays compile-verified; the
-  on-device parts are covered by the `:infrastructure` instrumented `ForegroundBrightnessServiceTest`
+  on-device parts are covered by the `:app` instrumented `ForegroundBrightnessServiceTest`
   and need a device/emulator run.
 - Verification (from the repo root):
   `$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot'` then
