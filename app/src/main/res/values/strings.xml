@@ -54,4 +54,18 @@
     <string name="setup_state_missing_revoked">Permission was taken away again</string>
     <string name="setup_state_unsupported">This device cannot do this</string>
     <string name="setup_state_unknown">Checking&#8230;</string>
+
+    <!-- Settings screen (F7, US4). -->
+    <string name="settings_title">Brightness settings</string>
+    <string name="settings_offset_heading">Manual offset</string>
+    <string name="settings_offset_slider_description">Manual brightness offset</string>
+    <string name="settings_response_speed_heading">Response speed</string>
+    <string name="settings_response_speed_slider_description">How quickly the brightness follows the light</string>
+    <string name="settings_response_speed_fastest">Faster</string>
+    <string name="settings_response_speed_slowest">Slower</string>
+    <string name="settings_reset_offset">Reset offset</string>
+    <string name="settings_reset_response_speed">Reset response speed</string>
+    <string name="settings_back">Back to dashboard</string>
+    <string name="settings_offset_clamped_minimum">The offset cannot go any lower at the current light level.</string>
+    <string name="settings_offset_clamped_maximum">The offset cannot go any higher at the current light level.</string>
 </resources>

@@ -54,4 +54,18 @@
     <string name="setup_state_missing_revoked">Berechtigung wurde wieder entzogen</string>
     <string name="setup_state_unsupported">Dieses Gerät kann das nicht</string>
     <string name="setup_state_unknown">Wird geprüft&#8230;</string>
+
+    <!-- Settings screen (F7, US4). -->
+    <string name="settings_title">Helligkeitseinstellungen</string>
+    <string name="settings_offset_heading">Manueller Versatz</string>
+    <string name="settings_offset_slider_description">Manueller Helligkeitsversatz</string>
+    <string name="settings_response_speed_heading">Reaktionsgeschwindigkeit</string>
+    <string name="settings_response_speed_slider_description">Wie schnell die Helligkeit dem Licht folgt</string>
+    <string name="settings_response_speed_fastest">Schneller</string>
+    <string name="settings_response_speed_slowest">Langsamer</string>
+    <string name="settings_reset_offset">Versatz zurücksetzen</string>
+    <string name="settings_reset_response_speed">Reaktionsgeschwindigkeit zurücksetzen</string>
+    <string name="settings_back">Zurück zur Übersicht</string>
+    <string name="settings_offset_clamped_minimum">Der Versatz kann bei diesem Lichtniveau nicht weiter sinken.</string>
+    <string name="settings_offset_clamped_maximum">Der Versatz kann bei diesem Lichtniveau nicht weiter steigen.</string>
 </resources>

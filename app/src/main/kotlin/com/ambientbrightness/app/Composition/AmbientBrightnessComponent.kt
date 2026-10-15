@@ -5,6 +5,7 @@ import com.ambientbrightness.app.AutomaticBrightnessControl.Collector.Brightness
 import com.ambientbrightness.app.BackgroundService.Collector.BrightnessServiceCollector
 import com.ambientbrightness.app.SetupFlow.Collector.SetupFlowCollector
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightSensorClient
+import com.ambientbrightness.core.AmbientLightSensing.AmbientLightService.AmbientLightService
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightService.DefaultAmbientLightService
 import com.ambientbrightness.core.AmbientLightSensing.AmbientLightUseCase.AmbientLightUseCase
 import com.ambientbrightness.core.AmbientLightSensing.ReadingStabiliser.OutlierClampingStabiliser
@@ -132,6 +133,12 @@ class AmbientBrightnessComponent(
         service = service,
         screenStateClient = screenStateClient,
     )
+
+    /**
+     * The F1 boundary itself, exposed so F7's dashboard collector can read the sampled lux stream. It
+     * is the same instance [collector] drives, so there is still exactly one ambient-light pipeline.
+     */
+    val ambientLightService: AmbientLightService = service
 
     /**
      * Automatic brightness controller (F2). It is started by whoever owns the control loop's

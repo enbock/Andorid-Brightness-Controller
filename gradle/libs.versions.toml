@@ -8,6 +8,7 @@ androidxActivity = "1.13.0"
 androidxLifecycle = "2.10.0"
 androidxComposeBom = "2026.03.01"
 androidxDatastore = "1.2.1"
+androidxNavigation = "2.9.0"
 junitJupiter = "5.12.2"
 junit4 = "4.13.2"
 kotlinxCoroutines = "1.10.2"
@@ -27,6 +28,7 @@ androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "androidxDatastore" }
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "androidxNavigation" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junitJupiter" }
 junit = { module = "junit:junit", version.ref = "junit4" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
@@ -40,3 +42,4 @@ android-application = { id = "com.android.application", version.ref = "androidGr
 android-library = { id = "com.android.library", version.ref = "androidGradlePlugin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
