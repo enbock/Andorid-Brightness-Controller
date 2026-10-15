@@ -31,6 +31,13 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        unitTests {
+            // The F7 label resolver is asserted against real string resource ids on the JVM.
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 kotlin {

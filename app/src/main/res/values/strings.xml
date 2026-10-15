@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Qualitative ambient-light levels (F7, US1 AC1.2). Plain, non-technical wording. -->
+    <string name="light_level_dark">Dark</string>
+    <string name="light_level_dim">Dim</string>
+    <string name="light_level_indoor">Indoor</string>
+    <string name="light_level_bright">Bright</string>
+    <string name="light_level_full_sun">Bright sunlight</string>
+    <string name="light_level_unknown">Unknown</string>
+</resources>

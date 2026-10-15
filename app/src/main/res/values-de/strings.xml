@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Qualitative ambient-light levels (F7, US1 AC1.2). -->
+    <string name="light_level_dark">Dunkel</string>
+    <string name="light_level_dim">Dämmerlicht</string>
+    <string name="light_level_indoor">Innenraum</string>
+    <string name="light_level_bright">Hell</string>
+    <string name="light_level_full_sun">Direktes Sonnenlicht</string>
+    <string name="light_level_unknown">Unbekannt</string>
+</resources>
