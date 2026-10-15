@@ -1,4 +1,4 @@
-package com.ambientbrightness.infrastructure
+package com.ambientbrightness.app
 
 import android.app.Notification
 import android.app.NotificationManager
@@ -20,6 +20,16 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/**
+ * Runs the real [ForegroundBrightnessService] on a device and checks the platform contract of the
+ * persistent notification (US1, AC1.1; US4, AC4.3).
+ *
+ * It lives in `:app`'s androidTest, not `:infrastructure`'s, because the service is declared in the
+ * **app** manifest: `:infrastructure`'s manifest is empty, so the infrastructure test target
+ * (`com.ambientbrightness.infrastructure.test`) has no such component and every bind attempt failed
+ * with "service not found" — the test silently skipped and proved nothing. This mirrors the
+ * documented correction for the F2 adapter tests, which had to move to `:app` for the same reason.
+ */
 @RunWith(AndroidJUnit4::class)
 class ForegroundBrightnessServiceTest {
 
