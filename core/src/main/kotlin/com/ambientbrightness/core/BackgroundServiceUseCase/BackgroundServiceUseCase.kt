@@ -80,6 +80,30 @@ class BackgroundServiceUseCase(
     }
 
     override fun stop() {
+        stopInternal(BackgroundServiceState.Stopped)
+    }
+
+    /**
+     * Records that the platform terminated the service outside the app — the foreground-service Task
+     * Manager, an OEM task killer or a crashed service — so F7 can show the real reason instead of a
+     * cached "running" (US3, AC3.3).
+     *
+     * It tears the lifecycle down exactly like [stop] (the F5 contract treats a Task-Manager kill as a
+     * stop), but ends in [BackgroundServiceState.StoppedBySystem] so a system stop stays
+     * distinguishable from a deliberate user stop. It is a no-op when nothing was running, because
+     * then the honest state already is [BackgroundServiceState.Stopped]. The platform layer calls it
+     * from the place that observes the service disappearing (F5's host bridge).
+     */
+    fun recordStoppedBySystem() {
+        stopInternal(BackgroundServiceState.StoppedBySystem)
+    }
+
+    /**
+     * Shared teardown for [stop] and [recordStoppedBySystem]: cancels the observation, stops the
+     * controller, restores the snapshot, tears the foreground service down, clears the persisted flag
+     * and publishes [finalState]. Idempotent — a call while already stopped changes nothing.
+     */
+    private fun stopInternal(finalState: BackgroundServiceState) {
         val job = synchronized(lifecycleLock) {
             if (!active) return
             active = false
@@ -94,7 +118,7 @@ class BackgroundServiceUseCase(
         restorer.restore(snapshot)
         host.stopForeground()
         controllerStateStore.desiredRunning = false
-        mutableState.value = BackgroundServiceState.Stopped
+        mutableState.value = finalState
     }
 
     /**

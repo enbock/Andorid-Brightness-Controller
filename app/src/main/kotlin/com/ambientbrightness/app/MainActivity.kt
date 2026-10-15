@@ -13,6 +13,7 @@ import com.ambientbrightness.app.SetupFlow.Navigator.SetupFlowNavigator
 import com.ambientbrightness.app.StatusDashboard.Navigator.DashboardNavHost
 import com.ambientbrightness.app.StatusDashboard.View.DashboardViewModel
 import com.ambientbrightness.app.StatusDashboard.View.SettingsViewModel
+import com.ambientbrightness.app.StatusDashboard.View.Task.ResumeReconciler
 import kotlinx.coroutines.Job
 
 /**
@@ -38,6 +39,10 @@ class MainActivity : ComponentActivity() {
 
     private val setupFlowNavigator: SetupFlowNavigator by lazy { SetupFlowNavigator.create(this) }
 
+    private val resumeReconciler: ResumeReconciler by lazy {
+        ResumeReconciler(component.setupService)
+    }
+
     private var collectionJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,6 +53,7 @@ class MainActivity : ComponentActivity() {
                     dashboardViewModel = dashboardViewModel,
                     settingsViewModel = settingsViewModel,
                     onSetupAction = setupFlowNavigator::perform,
+                    onResume = resumeReconciler::onResume,
                 )
             }
         }

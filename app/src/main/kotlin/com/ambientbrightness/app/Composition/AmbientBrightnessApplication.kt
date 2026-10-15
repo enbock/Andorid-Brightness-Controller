@@ -57,5 +57,9 @@ class AmbientBrightnessApplication : Application() {
         // The notification's Stop action reaches the service; forward it to the use case so it
         // travels the same path as a stop requested from the UI (F2 stop → restore → foreground stop).
         foregroundServiceHost.stopRequestHandler = { component.backgroundService.stop() }
+
+        // A service the platform killed must be reported as StoppedBySystem, not as a user stop, so the
+        // dashboard shows the real reason instead of a stale "running" state (US3, AC3.3).
+        foregroundServiceHost.systemStopHandler = { component.recordSystemStop() }
     }
 }

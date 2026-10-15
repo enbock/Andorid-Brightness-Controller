@@ -173,7 +173,8 @@ class AmbientBrightnessComponent(
      * notification and F6/F7. The restore path writes through the same [brightnessClient], so there
      * is no parallel brightness mechanism (AC3.2).
      */
-    val backgroundService: BrightnessBackgroundService = BackgroundServiceUseCase(
+    /** The concrete lifecycle owner, also kept so the app can report a platform-initiated stop. */
+    private val backgroundServiceUseCase = BackgroundServiceUseCase(
         controller = brightnessController,
         host = foregroundServiceHost,
         controllerStateStore = controllerStateStore,
@@ -182,6 +183,15 @@ class AmbientBrightnessComponent(
         notificationBuilder = BackgroundNotificationBuilder(),
         scope = controllerScope,
     )
+
+    val backgroundService: BrightnessBackgroundService = backgroundServiceUseCase
+
+    /**
+     * Records that the platform stopped the service outside the app, so F7 shows
+     * `StoppedBySystem` instead of a stale "running" label. The platform layer calls this from the
+     * place that observes the service disappearing.
+     */
+    internal fun recordSystemStop() = backgroundServiceUseCase.recordStoppedBySystem()
 
     /** Thin forwarder of F5's state and battery-optimization exemption for F6/F7. */
     val backgroundServiceCollector = BrightnessServiceCollector(backgroundService)

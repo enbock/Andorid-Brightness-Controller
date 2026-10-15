@@ -50,6 +50,15 @@ class ForegroundServiceHostBridge(
     /** Invoked on the notification Stop action; the composition root wires it to the use case's stop. */
     var stopRequestHandler: (() -> Unit)? = null
 
+    /**
+     * Invoked when the platform lost the service without the app stopping it (US3, AC3.3).
+     *
+     * `onServiceDisconnected` fires when the service process was killed or crashed, so it is the one
+     * place to distinguish a system stop from a deliberate [stopForeground]. The composition root wires
+     * it to the use case's `recordStoppedBySystem()`.
+     */
+    var systemStopHandler: (() -> Unit)? = null
+
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             val connectedService = (binder as? ForegroundBrightnessService.LocalBinder)?.service()
@@ -63,6 +72,7 @@ class ForegroundServiceHostBridge(
 
         override fun onServiceDisconnected(name: ComponentName?) {
             service = null
+            systemStopHandler?.invoke()
         }
     }
 

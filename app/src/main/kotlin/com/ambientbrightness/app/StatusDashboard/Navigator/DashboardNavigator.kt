@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.ambientbrightness.app.StatusDashboard.View.DashboardRoute
+import com.ambientbrightness.app.StatusDashboard.View.DashboardResumeEffect
 import com.ambientbrightness.app.StatusDashboard.View.DashboardViewModel
 import com.ambientbrightness.app.StatusDashboard.View.SettingsRoute
 import com.ambientbrightness.app.StatusDashboard.View.SettingsViewModel
@@ -40,9 +41,14 @@ internal fun DashboardNavHost(
     dashboardViewModel: DashboardViewModel,
     settingsViewModel: SettingsViewModel,
     onSetupAction: (SetupAction) -> Unit,
+    onResume: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
+
+    // Re-derives the live state when the app comes back, so a system stop or a grant changed in a
+    // system screen is reflected instead of the state from before (US2 AC2.4, US3 AC3.3).
+    DashboardResumeEffect(onResume = onResume)
 
     NavHost(
         navController = navController,

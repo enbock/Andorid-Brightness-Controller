@@ -75,6 +75,7 @@ class DashboardNavigationTest {
                         dashboardViewModel = dashboardViewModel,
                         settingsViewModel = settingsViewModel,
                         onSetupAction = {},
+                        onResume = {},
                     )
                 }
             }

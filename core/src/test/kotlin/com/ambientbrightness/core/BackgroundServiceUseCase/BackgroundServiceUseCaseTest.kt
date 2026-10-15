@@ -137,6 +137,72 @@ class BackgroundServiceUseCaseTest {
     }
 
     @Test
+    fun `a platform stop is reported as StoppedBySystem and still tears the lifecycle down`() =
+        runTest {
+            val scenario = scenario()
+            scenario.controller.snapshot = BrightnessSnapshot(BrightnessValue(77))
+            scenario.useCase.start(StartReason.UserRequest)
+            runCurrent()
+
+            scenario.useCase.recordStoppedBySystem()
+            runCurrent()
+
+            assertEquals(
+                BackgroundServiceState.StoppedBySystem,
+                scenario.useCase.state.value,
+            )
+            assertEquals(1, scenario.controller.stopCalls, "the controller must stop writing")
+            assertEquals(1, scenario.host.stopForegroundCalls, "the foreground service must come down")
+            assertFalse(scenario.store.desiredRunning)
+            assertEquals(
+                BrightnessValue(77),
+                scenario.brightness.lastWrite,
+                "a system stop is treated as a stop, so the pre-controller brightness is restored",
+            )
+        }
+
+    @Test
+    fun `a platform stop without a start changes nothing`() = runTest {
+        val scenario = scenario()
+
+        scenario.useCase.recordStoppedBySystem()
+        runCurrent()
+
+        assertEquals(0, scenario.controller.stopCalls)
+        assertEquals(0, scenario.host.stopForegroundCalls)
+        assertEquals(
+            BackgroundServiceState.Stopped,
+            scenario.useCase.state.value,
+            "nothing was running, so the honest state stays Stopped",
+        )
+    }
+
+    @Test
+    fun `a platform stop is not overridden by a later user stop`() = runTest {
+        val scenario = scenario()
+        scenario.useCase.start(StartReason.UserRequest)
+        runCurrent()
+
+        scenario.useCase.recordStoppedBySystem()
+        runCurrent()
+        val stopCallsAfterSystemStop = scenario.controller.stopCalls
+
+        scenario.useCase.stop()
+        runCurrent()
+
+        assertEquals(
+            stopCallsAfterSystemStop,
+            scenario.controller.stopCalls,
+            "the redundant user stop must not tear the service down a second time",
+        )
+        assertEquals(
+            BackgroundServiceState.StoppedBySystem,
+            scenario.useCase.state.value,
+            "the reason for the stop must survive a redundant call",
+        )
+    }
+
+    @Test
     fun `no status is mirrored after the controller has stopped`() = runTest {
         val scenario = scenario()
         scenario.useCase.start(StartReason.UserRequest)
