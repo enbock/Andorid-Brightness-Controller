@@ -14,6 +14,8 @@ import com.ambientbrightness.core.BackgroundService.StartReason
 import com.ambientbrightness.core.BrightnessBackgroundService.BrightnessBackgroundService
 import com.ambientbrightness.core.BrightnessOffset.BrightnessOffset
 import com.ambientbrightness.core.BrightnessOffset.BrightnessOffsetApplication
+import com.ambientbrightness.core.BrightnessOffset.BrightnessOffsetRange
+import com.ambientbrightness.core.BrightnessOffsetService.BrightnessOffsetService
 import com.ambientbrightness.core.BrightnessOffsetService.BrightnessOffsetSource
 import com.ambientbrightness.core.ResponseTuning.ResponseSpeed
 import com.ambientbrightness.core.ResponseTuning.ResponseTuningService.ResponseTuningService
@@ -163,7 +165,60 @@ internal class FakeBrightnessOffsetSource(
     }
 }
 
-/** F4 double: settable response speed. */
+/** F3 double: writable offset that records its writes and publishes them like the real service. */
+internal class FakeBrightnessOffsetService(
+    offsetPercent: Int = BrightnessOffsetRange.DEFAULT,
+    application: BrightnessOffsetApplication = BrightnessOffsetApplication.NotEvaluated,
+) : BrightnessOffsetService {
+
+    private val mutableOffset = MutableStateFlow(BrightnessOffset.of(offsetPercent))
+    private val mutableApplication = MutableStateFlow(application)
+
+    override val offset: StateFlow<BrightnessOffset> = mutableOffset
+    override val application: StateFlow<BrightnessOffsetApplication> = mutableApplication
+
+    var setOffsetCalls: Int = 0
+        private set
+
+    var lastSetOffset: BrightnessOffset? = null
+        private set
+
+    var resetCalls: Int = 0
+        private set
+
+    var adjustByCalls: Int = 0
+        private set
+
+    override suspend fun setOffset(offset: BrightnessOffset) {
+        setOffsetCalls++
+        lastSetOffset = offset
+        mutableOffset.value = offset
+    }
+
+    override suspend fun adjustBy(deltaPercent: Int) {
+        adjustByCalls++
+        mutableOffset.value = BrightnessOffset.of(
+            (mutableOffset.value.percent + deltaPercent)
+                .coerceIn(BrightnessOffsetRange.MIN, BrightnessOffsetRange.MAX),
+        )
+    }
+
+    override suspend fun reset() {
+        resetCalls++
+        mutableOffset.value = BrightnessOffset.DEFAULT
+    }
+
+    /** Publishes an offset as an out-of-band write (the shared store), without counting as a call. */
+    fun publishOffsetPercent(percent: Int) {
+        mutableOffset.value = BrightnessOffset.of(percent)
+    }
+
+    fun setApplication(value: BrightnessOffsetApplication) {
+        mutableApplication.value = value
+    }
+}
+
+/** F4 double: settable response speed that records its writes. */
 internal class FakeResponseTuningService(
     speedPercent: Int = ResponseSpeed.DEFAULT,
 ) : ResponseTuningService {
@@ -175,8 +230,12 @@ internal class FakeResponseTuningService(
     var setCalls: Int = 0
         private set
 
+    var lastSetSpeed: ResponseSpeed? = null
+        private set
+
     override suspend fun setResponseSpeed(speed: ResponseSpeed) {
         setCalls++
+        lastSetSpeed = speed
         mutableSpeed.value = speed
     }
 
