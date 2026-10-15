@@ -7,4 +7,51 @@
     <string name="light_level_bright">Bright</string>
     <string name="light_level_full_sun">Bright sunlight</string>
     <string name="light_level_unknown">Unknown</string>
+
+    <!-- Dashboard: live readout (F7, US1). -->
+    <string name="dashboard_light_heading">Ambient light</string>
+    <string name="dashboard_light_unavailable">No current reading</string>
+    <string name="dashboard_lux_value">%1$.0f lx</string>
+    <string name="dashboard_clamp_minimum">The offset is at its lowest setting for this light level.</string>
+    <string name="dashboard_clamp_maximum">The offset is at its highest setting for this light level.</string>
+
+    <!-- Dashboard: start/stop control (F7, US2). -->
+    <string name="dashboard_controller_heading">Brightness control</string>
+    <string name="dashboard_controller_stopped">Not running</string>
+    <string name="dashboard_controller_starting">Starting&#8230;</string>
+    <string name="dashboard_controller_running">Running</string>
+    <string name="dashboard_controller_running_brightness">Running, brightness %1$d</string>
+    <string name="dashboard_controller_blocked">Cannot start yet</string>
+    <string name="dashboard_controller_failed">Stopped because of an error</string>
+    <string name="dashboard_controller_stopped_by_system">Android stopped it. Open the app to start it again.</string>
+    <string name="dashboard_controller_error_reason">Reason: %1$s</string>
+    <string name="dashboard_start_blocked_reason">Still needed: %1$s</string>
+    <string name="dashboard_start">Start</string>
+    <string name="dashboard_stop">Stop</string>
+    <string name="dashboard_start_content_description">Start automatic brightness control</string>
+    <string name="dashboard_stop_content_description">Stop automatic brightness control</string>
+
+    <!-- Dashboard: setup summary (F7, US2 AC3 / US3). -->
+    <string name="dashboard_setup_heading">Setup</string>
+    <string name="dashboard_setup_unknown">Checking what is still needed&#8230;</string>
+    <string name="dashboard_setup_action">Fix</string>
+
+    <!-- Dashboard: settings entry point (F7, US4 AC1). -->
+    <string name="dashboard_settings_heading">Settings</string>
+    <string name="dashboard_offset_value">Offset: %1$d%%</string>
+    <string name="dashboard_response_speed_value">Response speed: %1$d%%</string>
+    <string name="dashboard_open_settings">Open settings</string>
+
+    <!-- Setup requirement names (F7, US3/US4). -->
+    <string name="setup_requirement_sensor">Ambient light sensor</string>
+    <string name="setup_requirement_write_settings">Permission to change the screen brightness</string>
+    <string name="setup_requirement_notifications">Notification permission</string>
+    <string name="setup_requirement_battery">Battery optimization exemption</string>
+
+    <!-- Setup requirement states (F7, US3/US4). -->
+    <string name="setup_state_satisfied">Done</string>
+    <string name="setup_state_missing_not_granted">Not granted yet</string>
+    <string name="setup_state_missing_revoked">Permission was taken away again</string>
+    <string name="setup_state_unsupported">This device cannot do this</string>
+    <string name="setup_state_unknown">Checking&#8230;</string>
 </resources>

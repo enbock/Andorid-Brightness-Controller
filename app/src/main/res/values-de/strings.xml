@@ -7,4 +7,51 @@
     <string name="light_level_bright">Hell</string>
     <string name="light_level_full_sun">Direktes Sonnenlicht</string>
     <string name="light_level_unknown">Unbekannt</string>
+
+    <!-- Dashboard: live readout (F7, US1). -->
+    <string name="dashboard_light_heading">Umgebungslicht</string>
+    <string name="dashboard_light_unavailable">Kein aktueller Messwert</string>
+    <string name="dashboard_lux_value">%1$.0f lx</string>
+    <string name="dashboard_clamp_minimum">Der Versatz ist bei diesem Lichtniveau am unteren Anschlag.</string>
+    <string name="dashboard_clamp_maximum">Der Versatz ist bei diesem Lichtniveau am oberen Anschlag.</string>
+
+    <!-- Dashboard: start/stop control (F7, US2). -->
+    <string name="dashboard_controller_heading">Helligkeitssteuerung</string>
+    <string name="dashboard_controller_stopped">Nicht aktiv</string>
+    <string name="dashboard_controller_starting">Wird gestartet&#8230;</string>
+    <string name="dashboard_controller_running">Aktiv</string>
+    <string name="dashboard_controller_running_brightness">Aktiv, Helligkeit %1$d</string>
+    <string name="dashboard_controller_blocked">Start noch nicht möglich</string>
+    <string name="dashboard_controller_failed">Wegen eines Fehlers beendet</string>
+    <string name="dashboard_controller_stopped_by_system">Android hat es beendet. Öffne die App, um es neu zu starten.</string>
+    <string name="dashboard_controller_error_reason">Ursache: %1$s</string>
+    <string name="dashboard_start_blocked_reason">Noch erforderlich: %1$s</string>
+    <string name="dashboard_start">Starten</string>
+    <string name="dashboard_stop">Beenden</string>
+    <string name="dashboard_start_content_description">Automatische Helligkeitssteuerung starten</string>
+    <string name="dashboard_stop_content_description">Automatische Helligkeitssteuerung beenden</string>
+
+    <!-- Dashboard: setup summary (F7, US2 AC3 / US3). -->
+    <string name="dashboard_setup_heading">Einrichtung</string>
+    <string name="dashboard_setup_unknown">Es wird geprüft, was noch fehlt&#8230;</string>
+    <string name="dashboard_setup_action">Beheben</string>
+
+    <!-- Dashboard: settings entry point (F7, US4 AC1). -->
+    <string name="dashboard_settings_heading">Einstellungen</string>
+    <string name="dashboard_offset_value">Versatz: %1$d%%</string>
+    <string name="dashboard_response_speed_value">Reaktionsgeschwindigkeit: %1$d%%</string>
+    <string name="dashboard_open_settings">Einstellungen öffnen</string>
+
+    <!-- Setup requirement names (F7, US3/US4). -->
+    <string name="setup_requirement_sensor">Umgebungslichtsensor</string>
+    <string name="setup_requirement_write_settings">Berechtigung zum Ändern der Bildschirmhelligkeit</string>
+    <string name="setup_requirement_notifications">Benachrichtigungsberechtigung</string>
+    <string name="setup_requirement_battery">Ausnahme von der Akku-Optimierung</string>
+
+    <!-- Setup requirement states (F7, US3/US4). -->
+    <string name="setup_state_satisfied">Erledigt</string>
+    <string name="setup_state_missing_not_granted">Noch nicht erteilt</string>
+    <string name="setup_state_missing_revoked">Berechtigung wurde wieder entzogen</string>
+    <string name="setup_state_unsupported">Dieses Gerät kann das nicht</string>
+    <string name="setup_state_unknown">Wird geprüft&#8230;</string>
 </resources>
