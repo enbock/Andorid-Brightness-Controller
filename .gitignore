@@ -9,6 +9,11 @@ build/
 # Machine-local configuration
 local.properties
 
+# Local build artifacts and signing material (never commit these)
+dist/
+*.keystore
+*.jks
+
 # IDE
 .idea/
 *.iml
